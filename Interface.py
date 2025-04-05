@@ -95,6 +95,7 @@ class RobotControlWindow(QMainWindow):
         gantry_layout.addWidget(self.gantry_refresh_btn, 0, 2)
         # GUI control toggle button
         self.gantry_gui_toggle = QPushButton("Disable GUI Control")
+        self.gantry_gui_toggle.setMaximumHeight(50)
         self.gantry_gui_toggle.setCheckable(True)
         self.gantry_gui_toggle.setChecked(True)
         self.gantry_gui_toggle.toggled.connect(self.toggle_gantry_gui)
@@ -152,6 +153,7 @@ class RobotControlWindow(QMainWindow):
         endeff_layout.addWidget(self.endeff_refresh_btn, 0, 2)
         # GUI control toggle button
         self.endeff_gui_toggle = QPushButton("Disable GUI Control")
+        self.endeff_gui_toggle.setMaximumHeight(50)
         self.endeff_gui_toggle.setCheckable(True)
         self.endeff_gui_toggle.setChecked(True)
         self.endeff_gui_toggle.toggled.connect(self.toggle_endeff_gui)
@@ -191,6 +193,10 @@ class RobotControlWindow(QMainWindow):
         self.linear_slider.valueChanged.connect(self.linear_lcd.display)
         endeff_layout.addWidget(self.linear_slider, 3, 1)
         endeff_layout.addWidget(self.linear_lcd, 3, 2)
+
+        # empty_label = QLabel()
+        # endeff_layout.addWidget(empty_label, 4, 0, 1, 3)
+
         control_layout.addWidget(self.endeff_group)
         
         # ------------------ Left Bottom: Button Groups ------------------
@@ -199,9 +205,12 @@ class RobotControlWindow(QMainWindow):
         
         # Motor Homing Group
         motor_home_group = QGroupBox("Motor Homing")
+        motor_home_group.setFont(font_label)
+        motor_home_group.setStyleSheet("QGroupBox * { font-size: 14px; font-weight: normal; }")
         motor_home_layout = QVBoxLayout()
         motor_home_group.setLayout(motor_home_layout)
         self.motor_home_btn = QPushButton("Motor Homing")
+        self.motor_home_btn.setMaximumHeight(50)
         self.motor_home_btn.clicked.connect(self.motor_home)
 
         motor_home_status_layout = QHBoxLayout()
@@ -217,10 +226,13 @@ class RobotControlWindow(QMainWindow):
         
         # Target Detection Group
         detection_group = QGroupBox("Target Detection")
+        detection_group.setFont(font_label)
+        detection_group.setStyleSheet("QGroupBox * { font-size: 14px; font-weight: normal; }")
         detection_layout = QVBoxLayout()
         detection_group.setLayout(detection_layout)
 
         self.detection_btn = QPushButton("Start Target Detection")
+        self.detection_btn.setMaximumHeight(50)
         self.detection_btn.clicked.connect(self.start_detection)
         detection_layout.addWidget(self.detection_btn)
 
@@ -244,10 +256,13 @@ class RobotControlWindow(QMainWindow):
 
         # Liver Boipsy Group (with 4-step status)
         self.liver_boipsy_group = QGroupBox("Liver Boipsy")
+        self.liver_boipsy_group.setFont(font_label)
+        self.liver_boipsy_group.setStyleSheet("QGroupBox * { font-size: 14px; font-weight: normal; }")
         liver_boipsy_layout = QVBoxLayout()
         self.liver_boipsy_group.setLayout(liver_boipsy_layout)
 
         self.liver_boipsy_btn = QPushButton("Liver Boipsy")
+        self.liver_boipsy_btn.setMaximumHeight(50)
         self.liver_boipsy_btn.clicked.connect(self.start_liver_boipsy)
         liver_boipsy_layout.addWidget(self.liver_boipsy_btn)
 
@@ -372,10 +387,10 @@ class RobotControlWindow(QMainWindow):
         print("Starting Liver Boipsy process")
         for lbl in self.liver_status_labels:
             lbl.setText("Wait")
-        QTimer.singleShot(1000, lambda: self.liver_status_labels[0].setText("Pass"))
-        QTimer.singleShot(2000, lambda: self.liver_status_labels[1].setText("Pass"))
-        QTimer.singleShot(3000, lambda: self.liver_status_labels[2].setText("Pass"))
-        QTimer.singleShot(4000, lambda: self.liver_status_labels[3].setText("Pass"))
+        QTimer.singleShot(1000, lambda: (self.liver_status_labels[0].setText("Pass"), self.liver_status_labels[0].setStyleSheet("color: green;")))
+        QTimer.singleShot(2000, lambda: (self.liver_status_labels[1].setText("Pass"), self.liver_status_labels[1].setStyleSheet("color: green;")))
+        QTimer.singleShot(3000, lambda: (self.liver_status_labels[2].setText("Pass"), self.liver_status_labels[2].setStyleSheet("color: green;")))
+        QTimer.singleShot(4000, lambda: (self.liver_status_labels[3].setText("Pass"), self.liver_status_labels[3].setStyleSheet("color: green;")))
     
     def closeEvent(self, event):
         self.cap1.release()
