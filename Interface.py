@@ -6,7 +6,9 @@ from PyQt6.QtWidgets import (
 )
 from PyQt6.QtCore import Qt, QTimer
 from PyQt6.QtGui import QImage, QPixmap, QGuiApplication, QFont
+from camera_utils import CSI_Camera, gstreamer_pipeline, colormask, calculate_world_3D
 import cv2
+import numpy as np
 
 class RobotControlWindow(QMainWindow):
     def __init__(self):
@@ -194,9 +196,6 @@ class RobotControlWindow(QMainWindow):
         endeff_layout.addWidget(self.linear_slider, 3, 1)
         endeff_layout.addWidget(self.linear_lcd, 3, 2)
 
-        # empty_label = QLabel()
-        # endeff_layout.addWidget(empty_label, 4, 0, 1, 3)
-
         control_layout.addWidget(self.endeff_group)
         
         # ------------------ Left Bottom: Button Groups ------------------
@@ -238,21 +237,21 @@ class RobotControlWindow(QMainWindow):
         self.detection_btn.clicked.connect(self.start_detection)
         detection_layout.addWidget(self.detection_btn)
 
-        # Left Camera status: fixed and dynamic labels side by side
-        left_status_layout = QHBoxLayout()
-        left_fixed_label = QLabel("Left Camera:")
-        self.left_detection_status = QLabel("Not Detected")
-        left_status_layout.addWidget(left_fixed_label)
-        left_status_layout.addWidget(self.left_detection_status)
-        detection_layout.addLayout(left_status_layout)
+        # Camera 1 status: fixed and dynamic labels side by side
+        cam1_status_layout = QHBoxLayout()
+        cam1_fixed_label = QLabel("Camera 1:")
+        self.cam1_detection_status = QLabel("Not Detected")
+        cam1_status_layout.addWidget(cam1_fixed_label)
+        cam1_status_layout.addWidget(self.cam1_detection_status)
+        detection_layout.addLayout(cam1_status_layout)
 
-        # Right Camera status: fixed and dynamic labels side by side
-        right_status_layout = QHBoxLayout()
-        right_fixed_label = QLabel("Right Camera:")
-        self.right_detection_status = QLabel("Not Detected")
-        right_status_layout.addWidget(right_fixed_label)
-        right_status_layout.addWidget(self.right_detection_status)
-        detection_layout.addLayout(right_status_layout)
+        # Camera 2 status: fixed and dynamic labels side by side
+        cam2_status_layout = QHBoxLayout()
+        cam2_fixed_label = QLabel("Camera 2:")
+        self.cam2_detection_status = QLabel("Not Detected")
+        cam2_status_layout.addWidget(cam2_fixed_label)
+        cam2_status_layout.addWidget(self.cam2_detection_status)
+        detection_layout.addLayout(cam2_status_layout)
 
         left_column_layout.addWidget(detection_group)
 
@@ -285,18 +284,25 @@ class RobotControlWindow(QMainWindow):
         button_layout.addLayout(left_column_layout)
         button_layout.addLayout(right_column_layout)
         
-        # ------------------ Timer and Camera Initialization ------------------
+        # ------------------ Timer, Camera, and flags Initialization ------------------
         self.timer = QTimer()
         self.timer.timeout.connect(self.update_camera_views)
         self.cameras_active = False
         
-        # Initialize cameras (using OpenCV for demonstration)
-        self.cap1 = cv2.VideoCapture(0)
-        self.cap2 = cv2.VideoCapture(1)
+        # Initialize 2 WebCam cameras (using OpenCV for demonstration)
+        self.cam1 = cv2.VideoCapture(0)
+        self.cam2 = cv2.VideoCapture(1)
+        # # Initialize 2 CSI cameras
+        # self.cam1 = CSI_Camera()
+        # self.cam2 = CSI_Camera()
         
         # GUI control enable flags
         self.gantry_gui_enabled = False
         self.endeff_gui_enabled = False
+
+        # colormask flags for 2 cameras
+        self.colormask_cam1 = False
+        self.colormask_cam2 = False
 
     def toggle_cameras(self, checked):
         if checked:
@@ -312,16 +318,52 @@ class RobotControlWindow(QMainWindow):
             
     def update_camera_views(self):
         if self.cameras_active:
-            ret1, frame1 = self.cap1.read()
-            ret2, frame2 = self.cap2.read()
+            # set parameters for 2 cameras
+            cam1_params = gstreamer_pipeline(
+                sensor_id=1,
+                capture_width=3280,
+                capture_height=2464,
+                flip_method=0,
+                framerate=21,
+                )
+            cam2_params = gstreamer_pipeline(
+                sensor_id=0,
+                capture_width=3280,
+                capture_height=2464,
+                flip_method=0,
+                framerate=21,
+                )
+            # open, start, and read 2 cameras
+            self.cam1.open(cam1_params)
+            self.cam1.start()
+            self.cam2.open(cam2_params)
+            self.cam2.start()
+            if self.cam1.video_capture.isOpened():
+                ret1, frame1 = self.cam1.read()
+            else:
+                ret1 = False
+            if self.cam2.video_capture.isOpened():
+                ret2, frame2 = self.cap2.read()
+            else:
+                ret2 = False
+            
+            # # test on WebCam
+            # ret1, frame1 = self.cam1.read()
+            # ret2, frame2 = self.cam2.read()
+
             if ret1:
                 frame1 = cv2.cvtColor(frame1, cv2.COLOR_BGR2RGB)
+                if self.colormask_cam1:
+                    _, _, frame1 = colormask(frame1)
                 h, w, ch = frame1.shape
                 bytes_per_line = ch * w
                 image1 = QImage(frame1.data, w, h, bytes_per_line, QImage.Format.Format_RGB888)
                 self.cam_label1.setPixmap(QPixmap.fromImage(image1).scaled(self.cam_label1.size(), Qt.AspectRatioMode.KeepAspectRatio))
             if ret2:
                 frame2 = cv2.cvtColor(frame2, cv2.COLOR_BGR2RGB)
+                if self.colormask_cam2:
+                    _, _, image2 = colormask(frame2)
+                    frame2 = np.hstack((frame2, image2))
                 h, w, ch = frame2.shape
                 bytes_per_line = ch * w
                 image2 = QImage(frame2.data, w, h, bytes_per_line, QImage.Format.Format_RGB888)
@@ -378,15 +420,17 @@ class RobotControlWindow(QMainWindow):
     
     def start_detection(self):
         print("Starting target detection process")
-        self.left_detection_status.setText("Detecting...")
-        self.right_detection_status.setText("Detecting...")
+        self.cam1_detection_status.setText("Detecting...")
+        self.colormask_cam1 = not self.colormask_cam1
+        self.cam2_detection_status.setText("Detecting...")
+        self.colormask_cam2 = not self.colormask_cam2
         QTimer.singleShot(3000, lambda: (
-            self.left_detection_status.setText("Target Detected"),
-            self.left_detection_status.setStyleSheet("color: green;")
+            self.cam1_detection_status.setText("Target Detected"),
+            self.cam1_detection_status.setStyleSheet("color: green;")
         ))
         QTimer.singleShot(3000, lambda: (
-            self.right_detection_status.setText("No Target"),
-            self.right_detection_status.setStyleSheet("color: red;")
+            self.cam2_detection_status.setText("No Target"),
+            self.cam2_detection_status.setStyleSheet("color: red;")
         ))
         
     def start_liver_boipsy(self):
@@ -399,8 +443,8 @@ class RobotControlWindow(QMainWindow):
         QTimer.singleShot(4000, lambda: (self.liver_status_labels[3].setText("Pass"), self.liver_status_labels[3].setStyleSheet("color: green;")))
     
     def closeEvent(self, event):
-        self.cap1.release()
-        self.cap2.release()
+        self.cam1.release()
+        self.cam2.release()
         event.accept()
 
 if __name__ == "__main__":
