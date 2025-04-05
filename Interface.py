@@ -13,6 +13,8 @@ import numpy as np
 class RobotControlWindow(QMainWindow):
     def __init__(self):
         super().__init__()
+
+        ## ------------------ Window Setup ------------------
         self.setWindowTitle("Discount daVinci Control Interface")
         # Set window size to maximum available screen geometry
         screen = QGuiApplication.primaryScreen()
@@ -255,6 +257,7 @@ class RobotControlWindow(QMainWindow):
 
         up_row_layout.addWidget(detection_group)
 
+        # Down row: Horizontal layout for Stages: Localization and Liver Biopsy
         down_row_layout = QHBoxLayout()
         # Stage 1 Group: Localization (2-step functions)
         self.localization_group = QGroupBox("Stage 1: Localization")
@@ -320,7 +323,7 @@ class RobotControlWindow(QMainWindow):
         button_layout.addLayout(up_row_layout)
         button_layout.addLayout(down_row_layout)
         
-        # ------------------ Timer, Camera, and flags Initialization ------------------
+        ## ------------------ Timer, Camera, and flags Initialization ------------------
         self.timer = QTimer()
         self.timer.timeout.connect(self.update_camera_views)
         self.cameras_active = False
@@ -339,6 +342,14 @@ class RobotControlWindow(QMainWindow):
         # colormask flags for 2 cameras
         self.colormask_cam1 = False
         self.colormask_cam2 = False
+
+        ## ------------------ Inner Parameters ------------------
+        self.target_X = None
+        self.target_Y = None
+        self.target_Z = None
+        self.ribcage_Y = None
+        self.ribcage_Z = None
+        
 
     def toggle_cameras(self, checked):
         if checked:

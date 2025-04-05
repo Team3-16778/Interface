@@ -2,23 +2,21 @@
 Code of the interface for the Discount daVinci
 
 ## GUI
-The user interface for the motor lab.
+The user interface to control the Discount daVinci.
 
-### Python version
-- Python 
+### Python version (tested)
+- Python 3.11
 
 ### Dependencies
-- pyqt6
+- PyQt6
 - pyserial
-- matplotlib
 - numpy
-
-## Arduino
+- opencv
 
 ### Hardware
 - Arduino Uno
-- Sensors
-- Motors
+- CSI Cameras
+- Actuators
 
 
 ### Debug
