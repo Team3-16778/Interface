@@ -1,11 +1,12 @@
 import sys
+import serial
 from serial.tools import list_ports
 from PyQt6.QtWidgets import (
     QApplication, QMainWindow, QWidget, QLabel, QPushButton, QSlider, QVBoxLayout,
-    QHBoxLayout, QGroupBox, QGridLayout, QComboBox, QLCDNumber, QSizePolicy
+    QHBoxLayout, QGroupBox, QGridLayout, QComboBox, QLCDNumber, QSizePolicy, QLineEdit
 )
-from PyQt6.QtCore import Qt, QTimer
-from PyQt6.QtGui import QImage, QPixmap, QGuiApplication, QFont
+from PyQt6.QtCore import Qt, QTimer, QThread, pyqtSignal
+from PyQt6.QtGui import QImage, QPixmap, QGuiApplication, QFont, QDoubleValidator
 from camera_utils import CSI_Camera, gstreamer_pipeline, colormask, calculate_world_3D
 import cv2
 import numpy as np
@@ -13,6 +14,23 @@ import numpy as np
 class RobotControlWindow(QMainWindow):
     def __init__(self):
         super().__init__()
+
+
+        ## ------------------ Inner Parameters ------------------
+        self.gantry_pos_des = [50, 50, 50]
+        self.endeff_pos_des = [90, 50]
+
+        self.gantry_X = None
+        self.gantry_Y = None
+        self.gantry_Z = None
+        self.endeff_servo = None
+        self.endeff_linear = None
+
+        self.target_X = None
+        self.target_Y = None
+        self.target_Z = None
+        self.ribcage_Y = None
+        self.ribcage_Z = None
 
         ## ------------------ Window Setup ------------------
         self.setWindowTitle("Discount daVinci Control Interface")
@@ -204,28 +222,117 @@ class RobotControlWindow(QMainWindow):
         button_layout = QVBoxLayout()
         left_layout.addLayout(button_layout, stretch=1)
         
-        # Up row: Horizontal layout for Motor Homing and Target Detection.
+        # Up row: Horizontal layout for Motor Status and Target Detection.
         up_row_layout = QHBoxLayout()
-        # Motor Homing Group
-        motor_home_group = QGroupBox("Motor Homing")
-        motor_home_group.setFont(font_label)
-        motor_home_group.setStyleSheet("QGroupBox * { font-size: 14px; font-weight: normal; }")
-        motor_home_layout = QVBoxLayout()
-        motor_home_group.setLayout(motor_home_layout)
+        # Motor Status Group
+        motor_status_group = QGroupBox("Motor Status")
+        motor_status_group.setMaximumWidth(320)
+        motor_status_group.setFont(font_label)
+        motor_status_group.setStyleSheet("QGroupBox * { font-size: 14px; font-weight: normal; }")
+        motor_status_layout = QVBoxLayout()
+        motor_status_group.setLayout(motor_status_layout)
+
+        # Motor homing button
         self.motor_home_btn = QPushButton("Motor Homing")
         self.motor_home_btn.setMaximumHeight(50)
         self.motor_home_btn.clicked.connect(self.motor_home)
 
-        motor_home_status_layout = QHBoxLayout()
+        # Move to target posiont layout
+        motor_move_layout = QVBoxLayout()
+        self.motor_move_btn = QPushButton("Motor Move")
+        self.motor_move_btn.setMaximumHeight(50)
+        self.motor_move_btn.clicked.connect(self.motor_move)
+
+        gantry_move_pos_layout = QHBoxLayout()
+        gantry_move_pos_label = QLabel("Gantry Target\n(X,Y,Z): ")
+        gantry_move_pos_label.setFixedWidth(100)
+        gantry_move_x = QLineEdit()
+        gantry_move_x_validator = QDoubleValidator(0, 100, 2)
+        gantry_move_x.setValidator(gantry_move_x_validator)
+        gantry_move_x.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        gantry_move_x.setText("{}".format(self.gantry_pos_des[0]))
+        gantry_move_y = QLineEdit()
+        gantry_move_y_validator = QDoubleValidator(0, 100, 2)
+        gantry_move_y.setValidator(gantry_move_y_validator)
+        gantry_move_y.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        gantry_move_y.setText("{}".format(self.gantry_pos_des[1]))
+        gantry_move_z = QLineEdit()
+        gantry_move_z_validator = QDoubleValidator(0, 100, 2)
+        gantry_move_z.setValidator(gantry_move_z_validator)
+        gantry_move_z.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        gantry_move_z.setText("{}".format(self.gantry_pos_des[2]))
+
+        ee_move_pos_layout = QHBoxLayout()
+
+        ee_move_pos_label = QLabel("EE Target\n(servo, linear): ")
+        ee_move_pos_label.setFixedWidth(100)
+        ee_move_servo = QLineEdit()
+        ee_move_servo_validator = QDoubleValidator(0, 180, 2)
+        ee_move_servo.setValidator(ee_move_servo_validator)
+        ee_move_servo.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        ee_move_servo.setText("{}".format(self.endeff_pos_des[0]))
+        ee_move_linear = QLineEdit()
+        ee_move_linear_validator = QDoubleValidator(0, 180, 2)
+        ee_move_linear.setValidator(ee_move_linear_validator)
+        ee_move_linear.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        ee_move_linear.setText("{}".format(self.endeff_pos_des[1]))
+
+        gantry_move_pos_layout.addWidget(gantry_move_pos_label)
+        gantry_move_pos_layout.addWidget(gantry_move_x)
+        gantry_move_pos_layout.addWidget(gantry_move_y)
+        gantry_move_pos_layout.addWidget(gantry_move_z)
+
+        ee_move_pos_layout.addWidget(ee_move_pos_label)
+        ee_move_pos_layout.addWidget(ee_move_servo)
+        ee_move_pos_layout.addWidget(ee_move_linear)
+
+        motor_move_layout.addWidget(self.motor_move_btn)
+        motor_move_layout.addLayout(gantry_move_pos_layout)
+        motor_move_layout.addLayout(ee_move_pos_layout)
+        
+        motor_status_label_layout = QHBoxLayout()
         fixed_status_label = QLabel("Status:")
         fixed_status_label.setFixedWidth(80)
-        self.motor_home_status = QLabel("Not Homed")
-        motor_home_status_layout.addWidget(fixed_status_label)
-        motor_home_status_layout.addWidget(self.motor_home_status)
+        self.motor_status = QLabel("Not Homed")
+        motor_status_label_layout.addWidget(fixed_status_label)
+        motor_status_label_layout.addWidget(self.motor_status)
 
-        motor_home_layout.addWidget(self.motor_home_btn)
-        motor_home_layout.addLayout(motor_home_status_layout)
-        up_row_layout.addWidget(motor_home_group)
+        motor_position_layout = QVBoxLayout()
+        gantry_pos_layout = QHBoxLayout()
+        gantry_pos_label = QLabel("Gantry\nPosition:")
+        gantry_pos_label.setFixedWidth(100)
+        self.gantry_pos_x = QLabel("N/A")
+        self.gantry_pos_x.setFixedWidth(50)
+        self.gantry_pos_y = QLabel("N/A")
+        self.gantry_pos_y.setFixedWidth(50)
+        self.gantry_pos_z = QLabel("N/A")
+        self.gantry_pos_z.setFixedWidth(50)
+        gantry_pos_layout.addWidget(gantry_pos_label)
+        gantry_pos_layout.addWidget(self.gantry_pos_x)
+        gantry_pos_layout.addWidget(self.gantry_pos_y)
+        gantry_pos_layout.addWidget(self.gantry_pos_z)
+
+        ee_pos_layout = QHBoxLayout()
+        ee_pos_label = QLabel("EE Position:")
+        ee_pos_label.setFixedWidth(100)
+        self.ee_pos_servo = QLabel("N/A")
+        self.ee_pos_servo.setFixedWidth(50)
+        self.ee_pos_linear = QLabel("N/A")
+        self.ee_pos_linear.setFixedWidth(50)
+        ee_pos_layout.addWidget(ee_pos_label)
+        ee_pos_layout.addWidget(self.ee_pos_servo)
+        ee_pos_layout.addWidget(self.ee_pos_linear)
+
+        motor_position_layout.addLayout(gantry_pos_layout)
+        motor_position_layout.addLayout(ee_pos_layout)
+
+        motor_status_layout.addWidget(self.motor_home_btn)
+        motor_status_layout.addLayout(motor_move_layout)
+        motor_status_layout.addLayout(motor_status_label_layout)
+        motor_status_layout.addLayout(motor_position_layout)
+
+        up_row_layout.addWidget(motor_status_group)
+        
         
         # Target Detection Group
         detection_group = QGroupBox("Target Detection")
@@ -323,32 +430,35 @@ class RobotControlWindow(QMainWindow):
         button_layout.addLayout(up_row_layout)
         button_layout.addLayout(down_row_layout)
         
-        ## ------------------ Timer, Camera, and flags Initialization ------------------
+        ## ------------------ Timer, Camera, Arduino and flags Initialization ------------------
         self.timer = QTimer()
         self.timer.timeout.connect(self.update_camera_views)
         self.cameras_active = False
         
-        # Initialize 2 WebCam cameras (using OpenCV for demonstration)
-        self.cam1 = cv2.VideoCapture(0)
-        self.cam2 = cv2.VideoCapture(1)
-        # # Initialize 2 CSI cameras
-        # self.cam1 = CSI_Camera()
-        # self.cam2 = CSI_Camera()
+        # # Initialize 2 WebCam cameras (using OpenCV for demonstration)
+        # self.cam1 = cv2.VideoCapture(0)
+        # self.cam2 = cv2.VideoCapture(1)
+        # Initialize 2 CSI cameras
+        self.cam1 = CSI_Camera()
+        self.cam2 = CSI_Camera()
         
+        # Initialize 2 Arduinos
+        self.arduino1 = None
+        self.arduino1_rate = 115200
+        self.serial_thread1 = None
+        self.arduino2 = None
+        self.arduino2_rate = 115200
+        self.serial_thread2 = None
+
         # GUI control enable flags
         self.gantry_gui_enabled = False
         self.endeff_gui_enabled = False
 
         # colormask flags for 2 cameras
         self.colormask_cam1 = False
+        self.target_finded_cam1 = False
         self.colormask_cam2 = False
-
-        ## ------------------ Inner Parameters ------------------
-        self.target_X = None
-        self.target_Y = None
-        self.target_Z = None
-        self.ribcage_Y = None
-        self.ribcage_Z = None
+        self.target_finded_cam2 = False
         
 
     def toggle_cameras(self, checked):
@@ -401,7 +511,7 @@ class RobotControlWindow(QMainWindow):
             if ret1:
                 frame1 = cv2.cvtColor(frame1, cv2.COLOR_BGR2RGB)
                 if self.colormask_cam1:
-                    _, _, frame1 = colormask(frame1)
+                    _, _, frame1, self.target_finded_cam1 = colormask(frame1)
                 h, w, ch = frame1.shape
                 bytes_per_line = ch * w
                 image1 = QImage(frame1.data, w, h, bytes_per_line, QImage.Format.Format_RGB888)
@@ -409,13 +519,27 @@ class RobotControlWindow(QMainWindow):
             if ret2:
                 frame2 = cv2.cvtColor(frame2, cv2.COLOR_BGR2RGB)
                 if self.colormask_cam2:
-                    _, _, image2 = colormask(frame2)
+                    _, _, image2, self.target_finded_cam2 = colormask(frame2)
                     frame2 = np.hstack((frame2, image2))
                 h, w, ch = frame2.shape
                 bytes_per_line = ch * w
                 image2 = QImage(frame2.data, w, h, bytes_per_line, QImage.Format.Format_RGB888)
                 self.cam_label2.setPixmap(QPixmap.fromImage(image2).scaled(self.cam_label2.size(), Qt.AspectRatioMode.KeepAspectRatio))
+
+
+
+    def handle_arduino1_data(self, data):
+        print("Arduino 1:", data)
+        # update
     
+    def handle_arduino2_data(self, data):
+        print("Arduino 2:", data)
+        # update
+
+    def send_command_to_arduino(arduino, command):
+        if arduino.is_open:
+            arduino.write((command + "\n").encode('utf-8'))
+
     def update_gantry(self, idx, value):
         if self.gantry_gui_enabled:
             print(f"Gantry Stepper {idx+1} set to {value}")
@@ -432,15 +556,36 @@ class RobotControlWindow(QMainWindow):
         self.gantry_gui_enabled = checked
         if checked:
             self.gantry_gui_toggle.setText("Disable GUI Control")
+            if self.gantry_port_combo.currentText() != "Waiting":
+                self.arduino1 = serial.Serial(self.gantry_port_combo.currentText(), self.arduino1_rate)
+                print("Gantry port opened at: ", self.gantry_port_combo.currentText())
+                self.serial_thread1 = SerialReaderThread(self.arduino1)
+                self.serial_thread1.data_received.connect(self.handle_arduino1_data)
+                self.serial_thread1.start()
         else:
             self.gantry_gui_toggle.setText("Enable GUI Control")
+            if self.arduino1 is not None:
+                print("Gantry port closed")
+                self.serial_thread1.stop()
+                self.arduino1.close()
+
     
     def toggle_endeff_gui(self, checked):
         self.endeff_gui_enabled = checked
         if checked:
             self.endeff_gui_toggle.setText("Disable GUI Control")
+            if self.endeff_port_combo.currentText() != "Waiting":
+                self.arduino2 = serial.Serial(self.endeff_port_combo.currentText(), self.arduino2_rate)
+                print("End-Effector port opened at: ", self.endeff_port_combo.currentText())
+                self.serial_thread2 = SerialReaderThread(self.arduino2)
+                self.serial_thread2.data_received.connect(self.handle_arduino2_data)
+                self.serial_thread2.start()
         else:
             self.endeff_gui_toggle.setText("Enable GUI Control")
+            if self.arduino2 is not None:
+                print("End-Effector port closed")
+                self.serial_thread2.stop()
+                self.arduino2.close()
     
     def update_gantry_ports(self):
         ports = list_ports.comports()
@@ -459,11 +604,16 @@ class RobotControlWindow(QMainWindow):
             port_names = ["No ports available"]
         self.endeff_port_combo.addItems(port_names)
         print("End-Effector ports updated:", port_names)
-    
+ 
     def motor_home(self):
         print("Executing motor homing")
-        self.motor_home_status.setText("Homing...")
-        QTimer.singleShot(2000, lambda: self.motor_home_status.setText("Homed"))
+        self.motor_status.setText("Homing...")
+        QTimer.singleShot(2000, lambda: self.motor_status.setText("Homed"))
+    
+    def motor_move(self):
+        print("Executing motor movement")
+        self.motor_status.setText("Moving...")
+        QTimer.singleShot(2000, lambda: self.motor_status.setText("Moving Finished"))
     
     def start_detection(self):
         print("Starting target detection process")
@@ -500,7 +650,38 @@ class RobotControlWindow(QMainWindow):
     def closeEvent(self, event):
         self.cam1.release()
         self.cam2.release()
+        if self.arduino1 is not None:
+            self.serial_thread1.stop()
+            self.arduino1.close()
+        if self.arduino2 is not None:
+            self.serial_thread2.stop()
+            self.arduino2.close()
         event.accept()
+
+class SerialReaderThread(QThread):
+    data_received = pyqtSignal(str)  # define the signal
+    def __init__(self, serial_port):
+        super().__init__()
+        self.serial_port = serial_port
+        self.running = True
+
+    def run(self):
+        while self.running:
+            if self.serial_port.in_waiting:
+                try:
+                    # read a line from the serial port
+                    data = self.serial_port.readline().decode('utf-8').strip()
+                    if data:
+                        self.data_received.emit(data)
+                except Exception as e:
+                    print("Error reading serial:", e)
+            self.msleep(1)  # delay, reduces CPU usage
+
+    def stop(self):
+        self.running = False
+        self.wait()  # Wait for the thread to finish
+
+
 
 if __name__ == "__main__":
     app = QApplication(sys.argv)

@@ -332,7 +332,9 @@ def colormask(image):
     masked_image = cv2.bitwise_and(image_rgb, image_rgb, mask=mask)
     mask_bgr = cv2.cvtColor(mask, cv2.COLOR_GRAY2RGB)
 
+    target_find = False
     if contours:
+        target_find = True
         # Find largest contour by area
         largest_contour = max(contours, key=cv2.contourArea)
         if cv2.contourArea(largest_contour) > 100:  # Ignore small blobs
@@ -353,7 +355,7 @@ def colormask(image):
             #             0.5, (0, 255, 0), 2)
             # print(f"World coords: X={world_coords[0]:.2f}, Y={world_coords[1]:.2f}, Z={world_coords[2]:.2f}")
 
-    return image_rgb, masked_image, mask_bgr
+    return image_rgb, masked_image, mask_bgr, target_find
 
 
 if __name__ == "__main__":
