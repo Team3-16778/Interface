@@ -94,10 +94,10 @@ class RobotControlWindow(QMainWindow):
         self.gantry_refresh_btn.clicked.connect(self.update_gantry_ports)
         gantry_layout.addWidget(self.gantry_refresh_btn, 0, 2)
         # GUI control toggle button
-        self.gantry_gui_toggle = QPushButton("Disable GUI Control")
+        self.gantry_gui_toggle = QPushButton("Enable GUI Control")
         self.gantry_gui_toggle.setMaximumHeight(50)
         self.gantry_gui_toggle.setCheckable(True)
-        self.gantry_gui_toggle.setChecked(True)
+        self.gantry_gui_toggle.setChecked(False)
         self.gantry_gui_toggle.toggled.connect(self.toggle_gantry_gui)
         gantry_layout.addWidget(self.gantry_gui_toggle, 1, 0, 1, 3)
         # Add sliders and LCD displays for three steppers
@@ -152,10 +152,10 @@ class RobotControlWindow(QMainWindow):
         self.endeff_refresh_btn.clicked.connect(self.update_endeff_ports)
         endeff_layout.addWidget(self.endeff_refresh_btn, 0, 2)
         # GUI control toggle button
-        self.endeff_gui_toggle = QPushButton("Disable GUI Control")
+        self.endeff_gui_toggle = QPushButton("Enable GUI Control")
         self.endeff_gui_toggle.setMaximumHeight(50)
         self.endeff_gui_toggle.setCheckable(True)
-        self.endeff_gui_toggle.setChecked(True)
+        self.endeff_gui_toggle.setChecked(False)
         self.endeff_gui_toggle.toggled.connect(self.toggle_endeff_gui)
         endeff_layout.addWidget(self.endeff_gui_toggle, 1, 0, 1, 3)
         # Servo control slider
@@ -203,6 +203,8 @@ class RobotControlWindow(QMainWindow):
         button_layout = QHBoxLayout()
         left_layout.addLayout(button_layout, stretch=1)
         
+        # Left Column: Vertical layout for Motor Homing and Target Detection.
+        left_column_layout = QVBoxLayout()
         # Motor Homing Group
         motor_home_group = QGroupBox("Motor Homing")
         motor_home_group.setFont(font_label)
@@ -222,7 +224,7 @@ class RobotControlWindow(QMainWindow):
 
         motor_home_layout.addWidget(self.motor_home_btn)
         motor_home_layout.addLayout(motor_home_status_layout)
-        button_layout.addWidget(motor_home_group)
+        left_column_layout.addWidget(motor_home_group)
         
         # Target Detection Group
         detection_group = QGroupBox("Target Detection")
@@ -252,8 +254,9 @@ class RobotControlWindow(QMainWindow):
         right_status_layout.addWidget(self.right_detection_status)
         detection_layout.addLayout(right_status_layout)
 
-        button_layout.addWidget(detection_group)
+        left_column_layout.addWidget(detection_group)
 
+        right_column_layout = QVBoxLayout()
         # Liver Boipsy Group (with 4-step status)
         self.liver_boipsy_group = QGroupBox("Liver Boipsy")
         self.liver_boipsy_group.setFont(font_label)
@@ -277,7 +280,10 @@ class RobotControlWindow(QMainWindow):
             self.liver_status_labels.append(dynamic_label)
             liver_boipsy_layout.addLayout(step_layout)
 
-        button_layout.addWidget(self.liver_boipsy_group)
+        right_column_layout.addWidget(self.liver_boipsy_group)
+
+        button_layout.addLayout(left_column_layout)
+        button_layout.addLayout(right_column_layout)
         
         # ------------------ Timer and Camera Initialization ------------------
         self.timer = QTimer()
@@ -289,8 +295,8 @@ class RobotControlWindow(QMainWindow):
         self.cap2 = cv2.VideoCapture(1)
         
         # GUI control enable flags
-        self.gantry_gui_enabled = True
-        self.endeff_gui_enabled = True
+        self.gantry_gui_enabled = False
+        self.endeff_gui_enabled = False
 
     def toggle_cameras(self, checked):
         if checked:
