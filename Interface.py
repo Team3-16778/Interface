@@ -1,5 +1,5 @@
 import sys
-import serial.tools.list_ports
+from serial.tools import list_ports
 from PyQt6.QtWidgets import (
     QApplication, QMainWindow, QWidget, QLabel, QPushButton, QSlider, QVBoxLayout,
     QHBoxLayout, QGroupBox, QGridLayout, QComboBox, QLCDNumber, QSizePolicy
@@ -79,7 +79,7 @@ class RobotControlWindow(QMainWindow):
         
         # ------------------ Left Top: Control Panels ------------------
         control_layout = QHBoxLayout()
-        left_layout.addLayout(control_layout, stretch=1)
+        left_layout.addLayout(control_layout)
         
         # Gantry Control Panel
         self.gantry_group = QGroupBox("Gantry Control")
@@ -137,7 +137,7 @@ class RobotControlWindow(QMainWindow):
         gantry_layout.setColumnStretch(1, 1)
         gantry_layout.setColumnStretch(2, 0)
 
-        control_layout.addWidget(self.gantry_group)
+        control_layout.addWidget(self.gantry_group, alignment=Qt.AlignmentFlag.AlignTop)
         
         # End-Effector Control Panel
         self.endeff_group = QGroupBox("End-Effector Control")
@@ -196,14 +196,14 @@ class RobotControlWindow(QMainWindow):
         endeff_layout.addWidget(self.linear_slider, 3, 1)
         endeff_layout.addWidget(self.linear_lcd, 3, 2)
 
-        control_layout.addWidget(self.endeff_group)
+        control_layout.addWidget(self.endeff_group, alignment=Qt.AlignmentFlag.AlignTop)
         
         # ------------------ Left Bottom: Button Groups ------------------
-        button_layout = QHBoxLayout()
+        button_layout = QVBoxLayout()
         left_layout.addLayout(button_layout, stretch=1)
         
-        # Left Column: Vertical layout for Motor Homing and Target Detection.
-        left_column_layout = QVBoxLayout()
+        # Up row: Horizontal layout for Motor Homing and Target Detection.
+        up_row_layout = QHBoxLayout()
         # Motor Homing Group
         motor_home_group = QGroupBox("Motor Homing")
         motor_home_group.setFont(font_label)
@@ -223,7 +223,7 @@ class RobotControlWindow(QMainWindow):
 
         motor_home_layout.addWidget(self.motor_home_btn)
         motor_home_layout.addLayout(motor_home_status_layout)
-        left_column_layout.addWidget(motor_home_group)
+        up_row_layout.addWidget(motor_home_group)
         
         # Target Detection Group
         detection_group = QGroupBox("Target Detection")
@@ -253,11 +253,47 @@ class RobotControlWindow(QMainWindow):
         cam2_status_layout.addWidget(self.cam2_detection_status)
         detection_layout.addLayout(cam2_status_layout)
 
-        left_column_layout.addWidget(detection_group)
+        up_row_layout.addWidget(detection_group)
 
-        right_column_layout = QVBoxLayout()
-        # Liver Boipsy Group (with 4-step status)
-        self.liver_boipsy_group = QGroupBox("Liver Boipsy")
+        down_row_layout = QHBoxLayout()
+        # Stage 1 Group: Localization (2-step functions)
+        self.localization_group = QGroupBox("Stage 1: Localization")
+        self.localization_group.setFont(font_label)
+        self.localization_group.setStyleSheet("QGroupBox * { font-size: 14px; font-weight: normal; }")
+        localization_layout = QVBoxLayout()
+        self.localization_group.setLayout(localization_layout)
+
+        # Create two rows for the 2 steps
+        # Row 1: X positioning: A fixed label, a button(start function), and a dynamic label for status.
+        positioning_row1_layout = QHBoxLayout()
+        positioning_row1_fixed_label = QLabel("X: ")
+        positioning_row1_fixed_label.setFixedWidth(40)
+        positioning_row1_layout.addWidget(positioning_row1_fixed_label)
+        self.positioning_row1_btn = QPushButton("Find X")
+        self.positioning_row1_btn.setMaximumHeight(50)
+        self.positioning_row1_btn.clicked.connect(self.positioning_X)
+        positioning_row1_layout.addWidget(self.positioning_row1_btn)
+        self.positioning_row1_status = QLabel("Not Positioned")
+        positioning_row1_layout.addWidget(self.positioning_row1_status)
+        localization_layout.addLayout(positioning_row1_layout)
+
+        # Row 2: Y&Z positioning: A fixed label, a button(start function), and a dynamic label for status.
+        positioning_row2_layout = QHBoxLayout()
+        positioning_row2_fixed_label = QLabel("Y&Z: ")
+        positioning_row2_fixed_label.setFixedWidth(40)
+        positioning_row2_layout.addWidget(positioning_row2_fixed_label)
+        self.positioning_row2_btn = QPushButton("Find Y&Z")
+        self.positioning_row2_btn.setMaximumHeight(50)
+        self.positioning_row2_btn.clicked.connect(self.positioning_YZ)
+        positioning_row2_layout.addWidget(self.positioning_row2_btn)
+        self.positioning_row2_status = QLabel("Not Positioned")
+        positioning_row2_layout.addWidget(self.positioning_row2_status)
+        localization_layout.addLayout(positioning_row2_layout)
+
+        down_row_layout.addWidget(self.localization_group)
+
+        # Stage 2 Group: Liver Boipsy (4-step status)
+        self.liver_boipsy_group = QGroupBox("Stage 2: Liver Boipsy")
         self.liver_boipsy_group.setFont(font_label)
         self.liver_boipsy_group.setStyleSheet("QGroupBox * { font-size: 14px; font-weight: normal; }")
         liver_boipsy_layout = QVBoxLayout()
@@ -279,10 +315,10 @@ class RobotControlWindow(QMainWindow):
             self.liver_status_labels.append(dynamic_label)
             liver_boipsy_layout.addLayout(step_layout)
 
-        right_column_layout.addWidget(self.liver_boipsy_group)
+        down_row_layout.addWidget(self.liver_boipsy_group)
 
-        button_layout.addLayout(left_column_layout)
-        button_layout.addLayout(right_column_layout)
+        button_layout.addLayout(up_row_layout)
+        button_layout.addLayout(down_row_layout)
         
         # ------------------ Timer, Camera, and flags Initialization ------------------
         self.timer = QTimer()
@@ -396,7 +432,7 @@ class RobotControlWindow(QMainWindow):
             self.endeff_gui_toggle.setText("Enable GUI Control")
     
     def update_gantry_ports(self):
-        ports = serial.tools.list_ports.comports()
+        ports = list_ports.comports()
         self.gantry_port_combo.clear()
         port_names = [port.device for port in ports]
         if not port_names:
@@ -405,7 +441,7 @@ class RobotControlWindow(QMainWindow):
         print("Gantry ports updated:", port_names)
     
     def update_endeff_ports(self):
-        ports = serial.tools.list_ports.comports()
+        ports = list_ports.comports()
         self.endeff_port_combo.clear()
         port_names = [port.device for port in ports]
         if not port_names:
@@ -432,7 +468,15 @@ class RobotControlWindow(QMainWindow):
             self.cam2_detection_status.setText("No Target"),
             self.cam2_detection_status.setStyleSheet("color: red;")
         ))
-        
+
+    def positioning_X(self):
+        print("Starting X positioning process")
+        self.positioning_row1_status.setText(" Pixel Error: {}\n Gantry Position: {}".format(0, 0))
+
+    def positioning_YZ(self):
+        print("Starting YZ positioning process")
+        self.positioning_row2_status.setText(" Target Y: {}\n Target Z: {}\n Ribcage Y: {}\n Ribcage Z: {}".format(0, 0, 0, 0))
+
     def start_liver_boipsy(self):
         print("Starting Liver Boipsy process")
         for lbl in self.liver_status_labels:
