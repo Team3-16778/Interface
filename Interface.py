@@ -1,4 +1,5 @@
 import sys
+import re
 import serial
 from serial.tools import list_ports
 from PyQt6.QtWidgets import (
@@ -17,8 +18,11 @@ class RobotControlWindow(QMainWindow):
 
 
         ## ------------------ Inner Parameters ------------------
-        self.gantry_pos_des = [50, 50, 50]
-        self.endeff_pos_des = [90, 50]
+        self.gantry_pos_des_x = 50
+        self.gantry_pos_des_y = 50
+        self.gantry_pos_des_z = 50
+        self.endeff_pos_des_servo = 90
+        self.endeff_pos_des_linear = 50
 
         self.gantry_X = None
         self.gantry_Y = None
@@ -246,45 +250,45 @@ class RobotControlWindow(QMainWindow):
         gantry_move_pos_layout = QHBoxLayout()
         gantry_move_pos_label = QLabel("Gantry Target\n(X,Y,Z): ")
         gantry_move_pos_label.setFixedWidth(100)
-        gantry_move_x = QLineEdit()
+        self.gantry_move_x = QLineEdit()
         gantry_move_x_validator = QDoubleValidator(0, 100, 2)
-        gantry_move_x.setValidator(gantry_move_x_validator)
-        gantry_move_x.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        gantry_move_x.setText("{}".format(self.gantry_pos_des[0]))
-        gantry_move_y = QLineEdit()
+        self.gantry_move_x.setValidator(gantry_move_x_validator)
+        self.gantry_move_x.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        self.gantry_move_x.setText("{}".format(self.gantry_pos_des_x))
+        self.gantry_move_y = QLineEdit()
         gantry_move_y_validator = QDoubleValidator(0, 100, 2)
-        gantry_move_y.setValidator(gantry_move_y_validator)
-        gantry_move_y.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        gantry_move_y.setText("{}".format(self.gantry_pos_des[1]))
-        gantry_move_z = QLineEdit()
+        self.gantry_move_y.setValidator(gantry_move_y_validator)
+        self.gantry_move_y.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        self.gantry_move_y.setText("{}".format(self.gantry_pos_des_y))
+        self.gantry_move_z = QLineEdit()
         gantry_move_z_validator = QDoubleValidator(0, 100, 2)
-        gantry_move_z.setValidator(gantry_move_z_validator)
-        gantry_move_z.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        gantry_move_z.setText("{}".format(self.gantry_pos_des[2]))
+        self.gantry_move_z.setValidator(gantry_move_z_validator)
+        self.gantry_move_z.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        self.gantry_move_z.setText("{}".format(self.gantry_pos_des_z))
 
         ee_move_pos_layout = QHBoxLayout()
 
         ee_move_pos_label = QLabel("EE Target\n(servo, linear): ")
         ee_move_pos_label.setFixedWidth(100)
-        ee_move_servo = QLineEdit()
+        self.ee_move_servo = QLineEdit()
         ee_move_servo_validator = QDoubleValidator(0, 180, 2)
-        ee_move_servo.setValidator(ee_move_servo_validator)
-        ee_move_servo.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        ee_move_servo.setText("{}".format(self.endeff_pos_des[0]))
-        ee_move_linear = QLineEdit()
+        self.ee_move_servo.setValidator(ee_move_servo_validator)
+        self.ee_move_servo.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        self.ee_move_servo.setText("{}".format(self.endeff_pos_des_servo))
+        self.ee_move_linear = QLineEdit()
         ee_move_linear_validator = QDoubleValidator(0, 180, 2)
-        ee_move_linear.setValidator(ee_move_linear_validator)
-        ee_move_linear.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        ee_move_linear.setText("{}".format(self.endeff_pos_des[1]))
+        self.ee_move_linear.setValidator(ee_move_linear_validator)
+        self.ee_move_linear.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        self.ee_move_linear.setText("{}".format(self.endeff_pos_des_linear))
 
         gantry_move_pos_layout.addWidget(gantry_move_pos_label)
-        gantry_move_pos_layout.addWidget(gantry_move_x)
-        gantry_move_pos_layout.addWidget(gantry_move_y)
-        gantry_move_pos_layout.addWidget(gantry_move_z)
+        gantry_move_pos_layout.addWidget(self.gantry_move_x)
+        gantry_move_pos_layout.addWidget(self.gantry_move_y)
+        gantry_move_pos_layout.addWidget(self.gantry_move_z)
 
         ee_move_pos_layout.addWidget(ee_move_pos_label)
-        ee_move_pos_layout.addWidget(ee_move_servo)
-        ee_move_pos_layout.addWidget(ee_move_linear)
+        ee_move_pos_layout.addWidget(self.ee_move_servo)
+        ee_move_pos_layout.addWidget(self.ee_move_linear)
 
         motor_move_layout.addWidget(self.motor_move_btn)
         motor_move_layout.addLayout(gantry_move_pos_layout)
@@ -443,12 +447,14 @@ class RobotControlWindow(QMainWindow):
         self.cam2 = CSI_Camera()
         
         # Initialize 2 Arduinos
+        # arduino1 is for gantry, arduino2 is for endeff
         self.arduino1 = None
         self.arduino1_rate = 115200
         self.serial_thread1 = None
         self.arduino2 = None
         self.arduino2_rate = 115200
         self.serial_thread2 = None
+        self.sender_threads = []
 
         # GUI control enable flags
         self.gantry_gui_enabled = False
@@ -527,18 +533,38 @@ class RobotControlWindow(QMainWindow):
                 self.cam_label2.setPixmap(QPixmap.fromImage(image2).scaled(self.cam_label2.size(), Qt.AspectRatioMode.KeepAspectRatio))
 
 
+    def parse_gantry_position(line):
+        # Match the string format "Current Position: X10.00 Y20.00 Z30.00"
+        m = re.search(r"^Current Position:\s*X([\d\.\-]+)\s+Y([\d\.\-]+)\s+Z([\d\.\-]+)", line)
+        if m:
+            posX = float(m.group(1))
+            posY = float(m.group(2))
+            posZ = float(m.group(3))
+            return posX, posY, posZ
+        return None
 
     def handle_arduino1_data(self, data):
         print("Arduino 1:", data)
-        # update
+        # read and update the gantry position
+        pos = self.parse_gantry_position(data)
+        if pos is not None:
+            self.gantry_X, self.gantry_Y, self.gantry_Z = pos
+            self.gantry_pos_x.setText(f"{self.gantry_X:.2f}")
+            self.gantry_pos_y.setText(f"{self.gantry_Y:.2f}")
+            self.gantry_pos_z.setText(f"{self.gantry_Z:.2f}")
+
     
     def handle_arduino2_data(self, data):
         print("Arduino 2:", data)
         # update
 
-    def send_command_to_arduino(arduino, command):
-        if arduino.is_open:
-            arduino.write((command + "\n").encode('utf-8'))
+    def send_command_in_thread_once(self, arduino, command):
+        sender = SerialSenderThread(arduino, command)
+        # when the thread finishes, remove it from the list
+        sender.finished.connect(lambda: self.sender_threads.remove(sender))
+        self.sender_threads.append(sender)
+        sender.start()
+
 
     def update_gantry(self, idx, value):
         if self.gantry_gui_enabled:
@@ -611,9 +637,21 @@ class RobotControlWindow(QMainWindow):
         QTimer.singleShot(2000, lambda: self.motor_status.setText("Homed"))
     
     def motor_move(self):
-        print("Executing motor movement")
         self.motor_status.setText("Moving...")
-        QTimer.singleShot(2000, lambda: self.motor_status.setText("Moving Finished"))
+        self.gantry_pos_des_x = float(self.gantry_move_x.text())
+        self.gantry_pos_des_y = float(self.gantry_move_y.text())
+        self.gantry_pos_des_z = float(self.gantry_move_z.text())
+        self.endeff_pos_des_servo = float(self.ee_move_servo.text())
+        self.endeff_pos_des_linear = float(self.ee_move_linear.text())
+
+        print("Executing motor movement to: X{} Y{} Z{} Servo{} Linear{}".format(self.gantry_pos_des_x, self.gantry_pos_des_y, self.gantry_pos_des_z, self.endeff_pos_des_servo, self.endeff_pos_des_linear))
+        if self.arduino1 is not None:
+            command_1 = "Gantry move to: X{} Y{} Z{}".format(self.gantry_pos_des_x, self.gantry_pos_des_y, self.gantry_pos_des_z)
+            self.send_command_in_thread_once(self.arduino1, command_1)
+        if self.arduino2 is not None:
+            command_2 = "Endeffector move to: Servo{} Linear{}".format(self.endeff_pos_des_servo, self.endeff_pos_des_linear)
+            self.send_command_in_thread_once(self.arduino2, command_2)
+        QTimer.singleShot(2000, lambda: self.motor_status.setText("Moved"))
     
     def start_detection(self):
         print("Starting target detection process")
@@ -680,6 +718,17 @@ class SerialReaderThread(QThread):
     def stop(self):
         self.running = False
         self.wait()  # Wait for the thread to finish
+
+class SerialSenderThread(QThread):
+    def __init__(self, arduino, command):
+        super().__init__()
+        self.arduino = arduino
+        self.command = command
+
+    def run(self):
+        # write the command to the serial port
+        if self.arduino.is_open:
+            self.arduino.write((self.command + "\n").encode("utf-8"))
 
 
 
