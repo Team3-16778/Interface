@@ -40,7 +40,7 @@ class Camera:
         if self.use_csi:
             pipeline = (
                 "nvarguscamerasrc sensor-id={} ! "
-                "video/x-raw(memory:NVMM), width=3280, height=2464, format=(string)NV12, "
+                "video/x-raw(memory:NVMM), width=1280, height=720, format=(string)NV12, "
                 "framerate=(fraction)21/1 ! nvvidconv ! video/x-raw, format=(string)BGRx ! "
                 "videoconvert ! video/x-raw, format=(string)BGR ! appsink"
             ).format(self.sensor_id)
@@ -584,16 +584,13 @@ class RobotControlWindow(QMainWindow):
         self.cameras_active = False
         
         # # Initialize 2 WebCam cameras (using OpenCV for demonstration)
-        # self.cam1 = cv2.VideoCapture(0)
-        # self.cam2 = cv2.VideoCapture(1)
-        self.cam1 = Camera(0, "Camera 1", use_csi=False, sensor_id=0)
-        self.cam2 = Camera(1, "Camera 2", use_csi=False, sensor_id=1)
+
+        # self.cam1 = Camera(0, "Camera 1", use_csi=False, sensor_id=0)
+        # self.cam2 = Camera(1, "Camera 2", use_csi=False, sensor_id=1)
 
         # Initialize 2 CSI cameras
-        # self.cam1 = CSI_Camera()
-        # self.cam2 = CSI_Camera()
-        # self.cam1 = Camera(0, "Camera 1", use_csi=True, sensor_id=0)
-        # self.cam2 = Camera(1, "Camera 2", use_csi=True, sensor_id=1)
+        self.cam1 = Camera(0, "Camera 1", use_csi=True, sensor_id=0)
+        self.cam2 = Camera(1, "Camera 2", use_csi=True, sensor_id=1)
 
 
         
