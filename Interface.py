@@ -1,3 +1,4 @@
+import os
 import sys
 import re
 import serial
@@ -14,6 +15,8 @@ from ColorMask import ColorMask
 import cv2
 import numpy as np
 
+dir_path = os.path.dirname(os.path.realpath(__file__))
+
 class Camera:
     def __init__(
         self,
@@ -25,8 +28,8 @@ class Camera:
         capture_height=2464,
         display_width=1920,
         display_height=1080,
-        framerate=30,
-        flip_method=0
+        framerate=21,
+        flip_method=0        
     ):
         self.color_mask = ColorMask(camera_name=name)
         self.latest_frame = None
@@ -35,6 +38,12 @@ class Camera:
         self.use_csi = use_csi
         self.sensor_id = sensor_id
         self.cam_index = cam_index
+        # Internal Parameters
+        self.camera_matrix = None
+        self.dist_coeffs = None
+        # External Parameters
+        self.Rotation_matrix = None
+        self.Translation_vector = None
 
     def start_cap(self):
         if self.use_csi:
@@ -106,6 +115,65 @@ class Camera:
         else:
             # If it’s just plain cv2.VideoCapture(...) with a GStreamer pipeline
             self.cap.release()
+
+    def get_internal_parameters(self, file_name):
+        camera_internal_file = dir_path + "/" + file_name
+        internal_data = np.load(camera_internal_file)
+        self.camera_matrix = internal_data["camera_matrix"]
+        self.dist_coeffs = internal_data["dist_coeffs"]
+        print("Camera Matrix: \n", self.camera_matrix)
+        print("Distortion Coefficients: \n", self.dist_coeffs)
+
+    def get_external_parameters(self, file_name):
+        camera_external_file = dir_path + "/" + file_name
+        T_world_camera = np.load(camera_external_file)["T_world_camera"]
+        self.Rotation_matrix = T_world_camera[0:3, 0:3]
+        self.Translation_vector = T_world_camera[0:3, 3].reshape(3, 1)    
+
+    def calculate_center_distance(self, u, v):
+        """
+        Calculate the distance from the target point to the camera center
+        """
+        if not (self.camera_matrix):
+            print("No internal parameters!!!")
+            return None, None
+        cx = self.camera_matrix[0, 2]
+        cy = self.camera_matrix[1, 2]        
+        return u-cx, v-cy
+    
+    def calculate_world_3D(self, u, v, Zc = 0.5):# Zc is the distance from the camera to the target(default is a random value)
+        """
+        Calculate the 3D coordinates of the target in the world frame
+        Input:
+            u: x coordinate of the target in the image
+            v: y coordinate of the target in the image
+            Zc: depth of the target in the camera frame (distance from the camera to the target)
+        Output:
+            world_point: 3D coordinates of the target in the world frame
+        """
+        # Get the parameters we need: focal length, principal point, and rotation vector and translation vector
+        if not (self.camera_matrix and self.Rotation_matrix and self.Translation_vector):
+            return None
+        fx = self.camera_matrix[0, 0]
+        fy = self.camera_matrix[1, 1]
+        cx = self.camera_matrix[0, 2]
+        cy = self.camera_matrix[1, 2]
+        Rotation_matrix = self.Rotation_matrix
+        Translation_vector = self.Translation_vector
+
+        # 4. Compute the 3D coordinates of the target in the camera frame
+        Xc = (u - cx) * Zc / fx
+        Yc = (v - cy) * Zc / fy
+        camera_point = np.array([[Xc], [Yc], [Zc]])
+
+        # 5. Compute the 3D coordinates of the target in the world frame
+        # Method 1: external parameters is T_world_camera
+        world_point = Rotation_matrix @ camera_point + Translation_vector
+
+        # Method 2: external parameters is T_camera_world
+        # world_point = Rotation_matrix.T @ (camera_point - Translation_vector)
+
+        return world_point.flatten()
 
 
 class GantryController:
