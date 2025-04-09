@@ -13,11 +13,6 @@ from camera_utils import CSI_Camera, gstreamer_pipeline, colormask, calculate_wo
 from ColorMask import ColorMask
 import cv2
 import numpy as np
-
-import cv2
-import numpy as np
-from csi_camera import CSI_Camera, gstreamer_pipeline  # Or define them in the same file.
-
 class Camera:
     def __init__(
         self,
