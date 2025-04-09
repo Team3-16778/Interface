@@ -12,6 +12,88 @@ from camera_utils import CSI_Camera, gstreamer_pipeline, colormask, calculate_wo
 import cv2
 import numpy as np
 
+from ColorMask import ColorMask
+
+
+
+from ColorMask import ColorMask
+from camera_utils import CSI_Camera
+import cv2
+import numpy as np
+
+class Camera:
+    def __init__(self, cam_index=0, name="Camera", use_csi=False, sensor_id=0):
+        self.color_mask = ColorMask(camera_name=name)
+        self.latest_frame = None
+        self.target_found = False
+        self.last_target_center = None  # (x, y) coordinates
+        self.use_csi = use_csi
+
+        if use_csi:
+            self.cap = CSI_Camera(sensor_id=sensor_id)
+            self.cap.open(self.cap.gstreamer_pipeline())
+            self.cap.start()
+        else:
+            self.cap = cv2.VideoCapture(cam_index)
+
+    def read_frame(self):
+        ret, frame = self.cap.read()
+        if ret and frame is not None:
+            self.latest_frame = cv2.cvtColor(frame, cv2.COLOR_RGB2BGR)
+            self.color_mask.set_frame(self.latest_frame)
+        return ret, self.latest_frame
+
+    def detect_target(self):
+        self.last_target_center = None  # reset before detection
+        if self.latest_frame is None:
+            return None, None, False
+
+        mask, overlay, found = self.color_mask.apply(self.latest_frame)
+        self.target_found = found
+
+        if found:
+            contours, _ = cv2.findContours(mask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+            if contours:
+                largest = max(contours, key=cv2.contourArea)
+                x, y, w, h = cv2.boundingRect(largest)
+                self.last_target_center = (x + w // 2, y + h // 2)
+
+        return mask, overlay, found
+
+    def get_display_frame(self, draw_bbox=True):
+        """
+        Returns the current frame (with optional bounding box drawn) in RGB format.
+        """
+        if self.latest_frame is None:
+            return None
+
+        display_frame = self.latest_frame.copy()
+        if draw_bbox and self.target_found and self.last_target_center:
+            x, y = self.last_target_center
+            # Estimate bbox size or store it during detection
+            mask, _, found = self.color_mask.apply(self.latest_frame)
+            contours, _ = cv2.findContours(mask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+            if contours:
+                largest = max(contours, key=cv2.contourArea)
+                x, y, w, h = cv2.boundingRect(largest)
+                cv2.rectangle(display_frame, (x, y), (x + w, y + h), (0, 255, 0), 2)
+
+        return cv2.cvtColor(display_frame, cv2.COLOR_BGR2RGB)
+
+
+    def get_center_of_mask(self):
+        return self.last_target_center
+
+    def open_tuner(self):
+        self.color_mask.open_tuner()
+
+    def release(self):
+        if self.use_csi:
+            self.cap.stop()
+        else:
+            self.cap.release()
+
+
 class RobotControlWindow(QMainWindow):
     def __init__(self):
         super().__init__()
@@ -70,8 +152,17 @@ class RobotControlWindow(QMainWindow):
         font_label.setPointSize(14)
         font_label.setBold(True)
 
-        
+        # ------------------ Right: Color Mask Initalization ------------------
+
+        self.color_mask_cam1 = ColorMask()
+        self.color_mask_cam2 = ColorMask()
+        self.color_mask_cam1.setWindowTitle("Color Mask 1")
+        self.color_mask_cam2.setWindowTitle("Color Mask 2")
+        self.color_mask_cam1.setWindowFlag(Qt.WindowType.WindowStaysOnTopHint)
+        self.color_mask_cam2.setWindowFlag(Qt.WindowType.WindowStaysOnTopHint)
+
         # ------------------ Right: Camera Toggle and Displays ------------------
+
         # Camera 1 Group
         cam1_group = QGroupBox("Camera 1")
         cam1_group.setFont(font_label)
@@ -83,13 +174,6 @@ class RobotControlWindow(QMainWindow):
         cam1_layout.addWidget(self.cam_label1)
         right_layout.addWidget(cam1_group)
 
-        # Camera toggle button on the right side
-        self.cam_toggle_btn = QPushButton("Open Cameras")
-        self.cam_toggle_btn.setCheckable(True)
-        self.cam_toggle_btn.setFont(font_button_1)
-        self.cam_toggle_btn.toggled.connect(self.toggle_cameras)
-        right_layout.addWidget(self.cam_toggle_btn)
-        
         # Camera 2 Group
         cam2_group = QGroupBox("Camera 2")
         cam2_group.setFont(font_label)
@@ -100,6 +184,34 @@ class RobotControlWindow(QMainWindow):
         self.cam_label2.setStyleSheet("background-color: #000;")
         cam2_layout.addWidget(self.cam_label2)
         right_layout.addWidget(cam2_group)
+
+        # Horizontal layout for camera control buttons
+        camera_controls_layout = QHBoxLayout()
+
+        self.cam_toggle_btn = QPushButton("Open Cameras")
+        self.cam_toggle_btn.setCheckable(True)
+        self.cam_toggle_btn.setFont(font_button_1)
+        self.cam_toggle_btn.setMaximumHeight(50)
+        self.cam_toggle_btn.setStyleSheet("QPushButton { font-size: 16px; font-weight: bold; }")
+        self.cam_toggle_btn.toggled.connect(self.toggle_cameras)
+        camera_controls_layout.addWidget(self.cam_toggle_btn, stretch=2)
+
+        self.cam1_tune_btn = QPushButton("Color Mask 1")
+        self.cam1_tune_btn.setMaximumHeight(50)
+        self.cam1_tune_btn.setFont(font_button_1)
+        self.cam1_tune_btn.setStyleSheet("QPushButton { font-size: 16px; font-weight: bold; }")
+        self.cam1_tune_btn.clicked.connect(lambda: self.cam1.open_tuner())
+        camera_controls_layout.addWidget(self.cam1_tune_btn, stretch=1)
+
+        self.cam2_tune_btn = QPushButton("Color Mask 2")
+        self.cam2_tune_btn.setMaximumHeight(50)
+        self.cam2_tune_btn.setFont(font_button_1)
+        self.cam2_tune_btn.setStyleSheet("QPushButton { font-size: 16px; font-weight: bold; }")
+        self.cam2_tune_btn.clicked.connect(lambda: self.cam2.open_tuner())
+        camera_controls_layout.addWidget(self.cam2_tune_btn, stretch=1)
+
+        right_layout.addLayout(camera_controls_layout)
+  
         
         # ------------------ Left Top: Control Panels ------------------
         control_layout = QHBoxLayout()
@@ -443,8 +555,12 @@ class RobotControlWindow(QMainWindow):
         # self.cam1 = cv2.VideoCapture(0)
         # self.cam2 = cv2.VideoCapture(1)
         # Initialize 2 CSI cameras
-        self.cam1 = CSI_Camera()
-        self.cam2 = CSI_Camera()
+        # self.cam1 = CSI_Camera()
+        # self.cam2 = CSI_Camera()
+
+        self.cam1 = Camera(0, "Camera 1")
+        self.cam2 = Camera(1, "Camera 2")
+
         
         # Initialize 2 Arduinos
         # arduino1 is for gantry, arduino2 is for endeff
@@ -481,56 +597,47 @@ class RobotControlWindow(QMainWindow):
             
     def update_camera_views(self):
         if self.cameras_active:
-            # set parameters for 2 cameras
-            cam1_params = gstreamer_pipeline(
-                sensor_id=1,
-                capture_width=3280,
-                capture_height=2464,
-                flip_method=0,
-                framerate=21,
-                )
-            cam2_params = gstreamer_pipeline(
-                sensor_id=0,
-                capture_width=3280,
-                capture_height=2464,
-                flip_method=0,
-                framerate=21,
-                )
-            # open, start, and read 2 cameras
-            self.cam1.open(cam1_params)
-            self.cam1.start()
-            self.cam2.open(cam2_params)
-            self.cam2.start()
-            if self.cam1.video_capture.isOpened():
-                ret1, frame1 = self.cam1.read()
-            else:
-                ret1 = False
-            if self.cam2.video_capture.isOpened():
-                ret2, frame2 = self.cap2.read()
-            else:
-                ret2 = False
-            
-            # # test on WebCam
-            # ret1, frame1 = self.cam1.read()
-            # ret2, frame2 = self.cam2.read()
+            ret1, frame1 = self.cam1.read_frame()
+            ret2, frame2 = self.cam2.read_frame()
 
             if ret1:
-                frame1 = cv2.cvtColor(frame1, cv2.COLOR_BGR2RGB)
                 if self.colormask_cam1:
-                    _, _, frame1, self.target_finded_cam1 = colormask(frame1)
-                h, w, ch = frame1.shape
-                bytes_per_line = ch * w
-                image1 = QImage(frame1.data, w, h, bytes_per_line, QImage.Format.Format_RGB888)
-                self.cam_label1.setPixmap(QPixmap.fromImage(image1).scaled(self.cam_label1.size(), Qt.AspectRatioMode.KeepAspectRatio))
+                    self.cam1.detect_target()
+                frame1 = self.cam1.get_display_frame()
+                if frame1 is not None:
+                    h, w, ch = frame1.shape
+                    bytes_per_line = ch * w
+                    image1 = QImage(frame1.data, w, h, bytes_per_line, QImage.Format.Format_RGB888)
+                    self.cam_label1.setPixmap(QPixmap.fromImage(image1).scaled(self.cam_label1.size(), Qt.AspectRatioMode.KeepAspectRatio))
+
             if ret2:
-                frame2 = cv2.cvtColor(frame2, cv2.COLOR_BGR2RGB)
                 if self.colormask_cam2:
-                    _, _, image2, self.target_finded_cam2 = colormask(frame2)
-                    frame2 = np.hstack((frame2, image2))
-                h, w, ch = frame2.shape
-                bytes_per_line = ch * w
-                image2 = QImage(frame2.data, w, h, bytes_per_line, QImage.Format.Format_RGB888)
-                self.cam_label2.setPixmap(QPixmap.fromImage(image2).scaled(self.cam_label2.size(), Qt.AspectRatioMode.KeepAspectRatio))
+                    self.cam2.detect_target()
+                frame2 = self.cam2.get_display_frame()
+                if frame2 is not None:
+                    h, w, ch = frame2.shape
+                    bytes_per_line = ch * w
+                    image2 = QImage(frame2.data, w, h, bytes_per_line, QImage.Format.Format_RGB888)
+                    self.cam_label2.setPixmap(QPixmap.fromImage(image2).scaled(self.cam_label2.size(), Qt.AspectRatioMode.KeepAspectRatio))
+
+            # Camera 1 status
+            if self.cam1.target_found and self.cam1.last_target_center:
+                cx, cy = self.cam1.last_target_center
+                self.cam1_detection_status.setText(f"Target at ({cx}, {cy})")
+                self.cam1_detection_status.setStyleSheet("color: green;")
+            else:
+                self.cam1_detection_status.setText("No Target")
+                self.cam1_detection_status.setStyleSheet("color: red;")
+
+            # Camera 2 status
+            if self.cam2.target_found and self.cam2.last_target_center:
+                cx, cy = self.cam2.last_target_center
+                self.cam2_detection_status.setText(f"Target at ({cx}, {cy})")
+                self.cam2_detection_status.setStyleSheet("color: green;")
+            else:
+                self.cam2_detection_status.setText("No Target")
+                self.cam2_detection_status.setStyleSheet("color: red;")
+
 
 
     def parse_gantry_position(line):
@@ -655,18 +762,26 @@ class RobotControlWindow(QMainWindow):
     
     def start_detection(self):
         print("Starting target detection process")
-        self.cam1_detection_status.setText("Detecting...")
-        self.colormask_cam1 = not self.colormask_cam1
-        self.cam2_detection_status.setText("Detecting...")
-        self.colormask_cam2 = not self.colormask_cam2
-        QTimer.singleShot(3000, lambda: (
-            self.cam1_detection_status.setText("Target Detected"),
-            self.cam1_detection_status.setStyleSheet("color: green;")
-        ))
-        QTimer.singleShot(3000, lambda: (
-            self.cam2_detection_status.setText("No Target"),
-            self.cam2_detection_status.setStyleSheet("color: red;")
-        ))
+        self.colormask_cam1 = True
+        self.colormask_cam2 = True
+
+        def update_detection_status():
+            if self.cam1.target_found:
+                self.cam1_detection_status.setText("Target Detected")
+                self.cam1_detection_status.setStyleSheet("color: green;")
+            else:
+                self.cam1_detection_status.setText("No Target")
+                self.cam1_detection_status.setStyleSheet("color: red;")
+
+            if self.cam2.target_found:
+                self.cam2_detection_status.setText("Target Detected")
+                self.cam2_detection_status.setStyleSheet("color: green;")
+            else:
+                self.cam2_detection_status.setText("No Target")
+                self.cam2_detection_status.setStyleSheet("color: red;")
+
+        QTimer.singleShot(200, update_detection_status)
+
 
     def positioning_X(self):
         print("Starting X positioning process")
