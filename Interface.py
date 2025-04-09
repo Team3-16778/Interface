@@ -169,7 +169,9 @@ class RobotControlWindow(QMainWindow):
         cam1_layout = QVBoxLayout()
         cam1_group.setLayout(cam1_layout)
         self.cam_label1 = QLabel()
-        self.cam_label1.setFixedSize(800, 600)
+        # self.cam_label1.setFixedSize(800, 600)
+        self.cam_label1.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Expanding)
+
         self.cam_label1.setStyleSheet("background-color: #000;")
         cam1_layout.addWidget(self.cam_label1)
         right_layout.addWidget(cam1_group)
@@ -180,7 +182,9 @@ class RobotControlWindow(QMainWindow):
         cam2_layout = QVBoxLayout()
         cam2_group.setLayout(cam2_layout)
         self.cam_label2 = QLabel()
-        self.cam_label2.setFixedSize(800, 600)
+        # self.cam_label2.setFixedSize(800, 600)
+        self.cam_label2.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Expanding)
+
         self.cam_label2.setStyleSheet("background-color: #000;")
         cam2_layout.addWidget(self.cam_label2)
         right_layout.addWidget(cam2_group)
