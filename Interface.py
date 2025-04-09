@@ -609,12 +609,12 @@ class RobotControlWindow(QMainWindow):
         
         # # Initialize 2 WebCam cameras (using OpenCV for demonstration)
 
-        self.cam1 = Camera(0, "Camera 1", use_csi=False, sensor_id=0)
-        self.cam2 = Camera(1, "Camera 2", use_csi=False, sensor_id=1)
+        # self.cam1 = Camera(0, "Camera 1", use_csi=False, sensor_id=0)
+        # self.cam2 = Camera(1, "Camera 2", use_csi=False, sensor_id=1)
 
         # Initialize 2 CSI cameras
-        # self.cam1 = Camera(0, "Camera 1", use_csi=True, sensor_id=0)
-        # self.cam2 = Camera(1, "Camera 2", use_csi=True, sensor_id=1)
+        self.cam1 = Camera(0, "Camera 1", use_csi=True, sensor_id=0)
+        self.cam2 = Camera(1, "Camera 2", use_csi=True, sensor_id=1)
 
 
         
