@@ -50,6 +50,8 @@ class Camera:
             return False, None
         # Optionally do BGR→RGB if you need that, or just skip if you want identical handling
         self.latest_frame = frame
+        self.color_mask.set_frame(frame)
+
         return True, self.latest_frame
 
 
@@ -173,12 +175,12 @@ class RobotControlWindow(QMainWindow):
 
         # ------------------ Right: Color Mask Initalization ------------------
 
-        self.color_mask_cam1 = ColorMask()
-        self.color_mask_cam2 = ColorMask()
-        self.color_mask_cam1.setWindowTitle("Color Mask 1")
-        self.color_mask_cam2.setWindowTitle("Color Mask 2")
-        self.color_mask_cam1.setWindowFlag(Qt.WindowType.WindowStaysOnTopHint)
-        self.color_mask_cam2.setWindowFlag(Qt.WindowType.WindowStaysOnTopHint)
+        # self.color_mask_cam1 = ColorMask()
+        # self.color_mask_cam2 = ColorMask()
+        # self.color_mask_cam1.setWindowTitle("Color Mask 1")
+        # self.color_mask_cam2.setWindowTitle("Color Mask 2")
+        # self.color_mask_cam1.setWindowFlag(Qt.WindowType.WindowStaysOnTopHint)
+        # self.color_mask_cam2.setWindowFlag(Qt.WindowType.WindowStaysOnTopHint)
 
         # ------------------ Right: Camera Toggle and Displays ------------------
 
@@ -579,12 +581,15 @@ class RobotControlWindow(QMainWindow):
         # # Initialize 2 WebCam cameras (using OpenCV for demonstration)
         # self.cam1 = cv2.VideoCapture(0)
         # self.cam2 = cv2.VideoCapture(1)
+        # self.cam1 = Camera(0, "Camera 1", use_csi=False, sensor_id=0)
+        # self.cam2 = Camera(1, "Camera 2", use_csi=False, sensor_id=1)
+
         # Initialize 2 CSI cameras
         # self.cam1 = CSI_Camera()
         # self.cam2 = CSI_Camera()
-
         self.cam1 = Camera(0, "Camera 1", use_csi=True, sensor_id=0)
         self.cam2 = Camera(1, "Camera 2", use_csi=True, sensor_id=1)
+
 
         
         # Initialize 2 Arduinos
