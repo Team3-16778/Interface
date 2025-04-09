@@ -38,6 +38,13 @@ class Camera:
         self.use_csi = use_csi
         self.sensor_id = sensor_id
         self.cam_index = cam_index
+        # gstreamer parameters
+        self.capture_width=capture_width,
+        self.capture_height=capture_height,
+        self.display_width=display_width,
+        self.display_height=display_height,
+        self.framerate=framerate,
+        self.flip_method=flip_method        
         # Internal Parameters
         self.camera_matrix = None
         self.dist_coeffs = None
@@ -49,10 +56,10 @@ class Camera:
         if self.use_csi:
             pipeline = (
                 "nvarguscamerasrc sensor-id={} ! "
-                "video/x-raw(memory:NVMM), width=1280, height=720, format=(string)NV12, "
-                "framerate=(fraction)21/1 ! nvvidconv ! video/x-raw, format=(string)BGRx ! "
+                "video/x-raw(memory:NVMM), width={}, height={}, format=(string)NV12, "
+                "framerate=(fraction){}/1 ! nvvidconv ! video/x-raw, format=(string)BGRx ! "
                 "videoconvert ! video/x-raw, format=(string)BGR ! appsink"
-            ).format(self.sensor_id)
+            ).format(self.sensor_id, self.capture_width, self.capture_height, self.framerate)
             self.cap = cv2.VideoCapture(pipeline, cv2.CAP_GSTREAMER)
         else:
             self.cap = cv2.VideoCapture(self.cam_index)
@@ -134,11 +141,12 @@ class Camera:
         """
         Calculate the distance from the target point to the camera center
         """
-        if not (self.camera_matrix):
+        if self.camera_matrix is None:
             print("No internal parameters!!!")
             return None, None
         cx = self.camera_matrix[0, 2]
-        cy = self.camera_matrix[1, 2]        
+        cy = self.camera_matrix[1, 2]
+        # print(f"Center(Pixel): {cx} {cy}")        
         return u-cx, v-cy
     
     def calculate_world_3D(self, u, v, Zc = 0.5):# Zc is the distance from the camera to the target(default is a random value)
@@ -152,7 +160,7 @@ class Camera:
             world_point: 3D coordinates of the target in the world frame
         """
         # Get the parameters we need: focal length, principal point, and rotation vector and translation vector
-        if not (self.camera_matrix and self.Rotation_matrix and self.Translation_vector):
+        if (self.camera_matrix is None or self.Rotation_matrix is None or self.Translation_vector is None):
             return None
         fx = self.camera_matrix[0, 0]
         fy = self.camera_matrix[1, 1]
@@ -732,9 +740,9 @@ class RobotControlWindow(QMainWindow):
 
             # Camera 1 status
             if self.cam1.target_found and self.cam1.last_target_center:
-                cx, cy = self.cam1.last_target_center
-                dis_x, dis_y = self.cam1.calculate_center_distance(cx, cy)
-                self.cam1_detection_status.setText(f"Target at ({cx}, {cy})\nDistance to the camera center: ({dis_x}, {dis_y})")
+                c1x, c1y = self.cam1.last_target_center
+                dis1_x, dis1_y = self.cam1.calculate_center_distance(c1x, c1y)
+                self.cam1_detection_status.setText(f"Target at ({c1x}, {c1y})\nDistance to the camera center: ({dis1_x}, {dis1_y})")
                 self.cam1_detection_status.setStyleSheet("color: green;")
             else:
                 self.cam1_detection_status.setText("No Target")
@@ -742,8 +750,9 @@ class RobotControlWindow(QMainWindow):
 
             # Camera 2 status
             if self.cam2.target_found and self.cam2.last_target_center:
-                cx, cy = self.cam2.last_target_center
-                self.cam2_detection_status.setText(f"Target at ({cx}, {cy})")
+                c2x, c2y = self.cam2.last_target_center
+                target_3D = self.cam2.calculate_world_3D(c2x, c2y)
+                self.cam2_detection_status.setText("Target at ({}, {})\n3D Coordinate of the world frame: ({:.2f}, {:.2f}, {:.2f})".format(c2x,c2y,target_3D[0],target_3D[1],target_3D[2]))
                 self.cam2_detection_status.setStyleSheet("color: green;")
             else:
                 self.cam2_detection_status.setText("No Target")
