@@ -95,7 +95,7 @@ class Camera:
     def release(self):
         if self.use_csi:
             # If you are using the CSI_Camera code that spawns a thread:
-            self.cap.stop()       # stop the background thread
+            # self.cap.stop()       # stop the background thread
             self.cap.release()    # then release pipeline
         else:
             # If it’s just plain cv2.VideoCapture(...) with a GStreamer pipeline
@@ -626,8 +626,6 @@ class RobotControlWindow(QMainWindow):
 
             self.cam1.release()
             self.cam2.release()
-
-            time.sleep(1)
             
     def update_camera_views(self):
         if self.cameras_active:
