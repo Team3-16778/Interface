@@ -13,79 +13,48 @@ from camera_utils import CSI_Camera, gstreamer_pipeline, colormask, calculate_wo
 from ColorMask import ColorMask
 import cv2
 import numpy as np
+
 class Camera:
     def __init__(
         self,
         cam_index=0,
         name="Camera",
-        use_csi=True,
+        use_csi=False,
         sensor_id=0,
-        capture_width=1280,
-        capture_height=720,
-        display_width=1280,
-        display_height=720,
-        framerate=30,
-        flip_method=0
     ):
-        self.name = name
         self.color_mask = ColorMask(camera_name=name)
         self.latest_frame = None
         self.target_found = False
         self.last_target_center = None
-
         self.use_csi = use_csi
-        self.cam_index = cam_index
         self.sensor_id = sensor_id
-        self.capture_width = capture_width
-        self.capture_height = capture_height
-        self.display_width = display_width
-        self.display_height = display_height
-        self.framerate = framerate
-        self.flip_method = flip_method
-
-        # Initially None; will be created in start_cap()
-        self.cap = None
+        self.cam_index = cam_index
 
     def start_cap(self):
         if self.use_csi:
-            pipeline = gstreamer_pipeline(
-                sensor_id=self.sensor_id,
-                capture_width=self.capture_width,
-                capture_height=self.capture_height,
-                display_width=self.display_width,
-                display_height=self.display_height,
-                framerate=self.framerate,
-                flip_method=self.flip_method
-            )
-            self.cap = CSI_Camera()
-            self.cap.open(pipeline)
-            self.cap.start()
+            pipeline = (
+                "nvarguscamerasrc sensor-id={} ! "
+                "video/x-raw(memory:NVMM), width=1280, height=720, format=(string)NV12, "
+                "framerate=(fraction)21/1 ! nvvidconv ! video/x-raw, format=(string)BGRx ! "
+                "videoconvert ! video/x-raw, format=(string)BGR ! appsink"
+            ).format(self.sensor_id)
+            self.cap = cv2.VideoCapture(pipeline, cv2.CAP_GSTREAMER)
         else:
             self.cap = cv2.VideoCapture(self.cam_index)
 
     def read_frame(self):
-        """
-        Reads a frame from either the CSI_Camera (threaded) or normal cv2 capture.
-        """
-        if self.cap is None:
+        ret, frame = self.cap.read()
+        if not ret or frame is None:
             return False, None
+        # Optionally do BGR→RGB if you need that, or just skip if you want identical handling
+        self.latest_frame = frame
+        self.color_mask.set_frame(frame)
 
-        if self.use_csi:
-            grabbed, frame = self.cap.read()  # Threaded read
-            if not grabbed or frame is None:
-                return False, None
-            self.latest_frame = frame
-        else:
-            ret, frame = self.cap.read()
-            if not ret or frame is None:
-                return False, None
-            self.latest_frame = frame
-
-        self.color_mask.set_frame(self.latest_frame)
         return True, self.latest_frame
 
+
     def detect_target(self):
-        self.last_target_center = None
+        self.last_target_center = None  # reset
         if self.latest_frame is None:
             return None, None, False
 
@@ -107,29 +76,31 @@ class Camera:
         display_frame = self.latest_frame.copy()
         if draw_bbox and self.target_found and self.last_target_center:
             x, y = self.last_target_center
-            mask, _, _ = self.color_mask.apply(self.latest_frame)
+            mask, _, found = self.color_mask.apply(self.latest_frame)
             contours, _ = cv2.findContours(mask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
             if contours:
                 largest = max(contours, key=cv2.contourArea)
                 x, y, w, h = cv2.boundingRect(largest)
                 cv2.rectangle(display_frame, (x, y), (x + w, y + h), (0, 255, 0), 2)
 
-        # Convert to RGB if you need that for PySide display
-        return cv2.cvtColor(display_frame, cv2.COLOR_BGR2RGB)
+        # Convert back to BGR if you need to display it with OpenCV
+        return cv2.cvtColor(display_frame, cv2.COLOR_RGB2BGR)
+
+    def get_center_of_mask(self):
+        return self.last_target_center
 
     def open_tuner(self):
         self.color_mask.open_tuner()
 
     def release(self):
-        """Stop threads and release the capture device."""
-        if self.cap is None:
-            return
         if self.use_csi:
-            self.cap.stop()
-            self.cap.release()
+            # If you are using the CSI_Camera code that spawns a thread:
+            self.cap.stop()       # stop the background thread
+            self.cap.release()    # then release pipeline
         else:
+            # If it’s just plain cv2.VideoCapture(...) with a GStreamer pipeline
             self.cap.release()
-        self.cap = None
+
 
 class GantryController:
     def __init__(self, port, baudrate=9600, timeout=2):
