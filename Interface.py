@@ -33,31 +33,51 @@ class Camera:
         self.last_target_center = None
         self.use_csi = use_csi
 
+        # if use_csi:
+        #     # Build pipeline string for the CSI camera
+        #     pipeline = gstreamer_pipeline(
+        #         sensor_id=sensor_id,
+        #         capture_width=capture_width,
+        #         capture_height=capture_height,
+        #         display_width=display_width,
+        #         display_height=display_height,
+        #         framerate=framerate,
+        #         flip_method=flip_method,
+        #     )
+        #     self.cap = CSI_Camera()
+        #     self.cap.open(pipeline)
+        #     self.cap.start()
+        # else:
+        #     # Standard USB camera
+        #     self.cap = cv2.VideoCapture(cam_index)
+
         if use_csi:
-            # Build pipeline string for the CSI camera
-            pipeline = gstreamer_pipeline(
-                sensor_id=sensor_id,
-                capture_width=capture_width,
-                capture_height=capture_height,
-                display_width=display_width,
-                display_height=display_height,
-                framerate=framerate,
-                flip_method=flip_method,
-            )
-            self.cap = CSI_Camera()
-            self.cap.open(pipeline)
-            self.cap.start()
+            pipeline = (
+                "nvarguscamerasrc sensor-id={} ! "
+                "video/x-raw(memory:NVMM), width=3280, height=2464, format=(string)NV12, "
+                "framerate=(fraction)21/1 ! nvvidconv ! video/x-raw, format=(string)BGRx ! "
+                "videoconvert ! video/x-raw, format=(string)BGR ! appsink"
+            ).format(sensor_id)
+            self.cap = cv2.VideoCapture(pipeline, cv2.CAP_GSTREAMER)
         else:
-            # Standard USB camera
             self.cap = cv2.VideoCapture(cam_index)
+
+    # def read_frame(self):
+    #     ret, frame = self.cap.read()
+    #     if ret and frame is not None:
+    #         # Convert from BGR to RGB (or vice versa, as needed)
+    #         self.latest_frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
+    #         self.color_mask.set_frame(self.latest_frame)
+    #     return ret, self.latest_frame
 
     def read_frame(self):
         ret, frame = self.cap.read()
-        if ret and frame is not None:
-            # Convert from BGR to RGB (or vice versa, as needed)
-            self.latest_frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
-            self.color_mask.set_frame(self.latest_frame)
-        return ret, self.latest_frame
+        if not ret or frame is None:
+            return False, None
+        # Optionally do BGR→RGB if you need that, or just skip if you want identical handling
+        self.latest_frame = frame
+        return True, self.latest_frame
+
 
     def detect_target(self):
         self.last_target_center = None  # reset
