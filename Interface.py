@@ -3,12 +3,12 @@ import re
 import serial
 from serial.tools import list_ports
 import time
-from PyQt6.QtWidgets import (
+from PySide6.QtWidgets import (
     QApplication, QMainWindow, QWidget, QLabel, QPushButton, QSlider, QVBoxLayout,
     QHBoxLayout, QGroupBox, QGridLayout, QComboBox, QLCDNumber, QSizePolicy, QLineEdit
 )
-from PyQt6.QtCore import Qt, QTimer, QThread, pyqtSignal
-from PyQt6.QtGui import QImage, QPixmap, QGuiApplication, QFont, QDoubleValidator
+from PySide6.QtCore import Qt, QTimer, QThread, Signal
+from PySide6.QtGui import QImage, QPixmap, QGuiApplication, QFont, QDoubleValidator
 from camera_utils import CSI_Camera, gstreamer_pipeline, colormask, calculate_world_3D
 from ColorMask import ColorMask
 import cv2
@@ -843,7 +843,7 @@ class RobotControlWindow(QMainWindow):
         event.accept()
 
 class SerialReaderThread(QThread):
-    data_received = pyqtSignal(str)  # define the signal
+    data_received = Signal(str)  # define the signal
     def __init__(self, serial_port):
         super().__init__()
         self.serial_port = serial_port

@@ -1,12 +1,12 @@
 import sys
 import cv2
 import numpy as np
-from PyQt6.QtWidgets import (
+from PySide6.QtWidgets import (
     QApplication, QWidget, QLabel, QVBoxLayout, QGridLayout,
     QSlider, QSpinBox, QPushButton, QHBoxLayout
 )
-from PyQt6.QtCore import Qt, QTimer
-from PyQt6.QtGui import QImage, QPixmap, QMouseEvent
+from PySide6.QtCore import Qt, QTimer
+from PySide6.QtGui import QImage, QPixmap, QMouseEvent
 
 class ColorMask(QWidget):
     def __init__(self, camera_name="Camera", parent=None):
