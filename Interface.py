@@ -13,6 +13,7 @@ from camera_utils import CSI_Camera, gstreamer_pipeline, colormask, calculate_wo
 from ColorMask import ColorMask
 import cv2
 import numpy as np
+
 class Camera:
     def __init__(
         self,
@@ -32,17 +33,20 @@ class Camera:
         self.target_found = False
         self.last_target_center = None
         self.use_csi = use_csi
+        self.sensor_id = sensor_id
+        self.cam_index = cam_index
 
-        if use_csi:
+    def start_cap(self):
+        if self.use_csi:
             pipeline = (
                 "nvarguscamerasrc sensor-id={} ! "
                 "video/x-raw(memory:NVMM), width=3280, height=2464, format=(string)NV12, "
                 "framerate=(fraction)21/1 ! nvvidconv ! video/x-raw, format=(string)BGRx ! "
                 "videoconvert ! video/x-raw, format=(string)BGR ! appsink"
-            ).format(sensor_id)
+            ).format(self.sensor_id)
             self.cap = cv2.VideoCapture(pipeline, cv2.CAP_GSTREAMER)
         else:
-            self.cap = cv2.VideoCapture(cam_index)
+            self.cap = cv2.VideoCapture(self.cam_index)
 
     def read_frame(self):
         ret, frame = self.cap.read()
@@ -95,11 +99,12 @@ class Camera:
         self.color_mask.open_tuner()
 
     def release(self):
-        if self.use_csi:
-            self.cap.stop()
-            self.cap.release()
-        else:
-            self.cap.release()
+        self.cap.release()
+        # if self.use_csi:
+            # self.cap.stop()
+        #     self.cap.release()
+        # else:
+        #     self.cap.release()
 
 
 class GantryController:
@@ -581,14 +586,14 @@ class RobotControlWindow(QMainWindow):
         # # Initialize 2 WebCam cameras (using OpenCV for demonstration)
         # self.cam1 = cv2.VideoCapture(0)
         # self.cam2 = cv2.VideoCapture(1)
-        # self.cam1 = Camera(0, "Camera 1", use_csi=False, sensor_id=0)
-        # self.cam2 = Camera(1, "Camera 2", use_csi=False, sensor_id=1)
+        self.cam1 = Camera(0, "Camera 1", use_csi=False, sensor_id=0)
+        self.cam2 = Camera(1, "Camera 2", use_csi=False, sensor_id=1)
 
         # Initialize 2 CSI cameras
         # self.cam1 = CSI_Camera()
         # self.cam2 = CSI_Camera()
-        self.cam1 = Camera(0, "Camera 1", use_csi=True, sensor_id=0)
-        self.cam2 = Camera(1, "Camera 2", use_csi=True, sensor_id=1)
+        # self.cam1 = Camera(0, "Camera 1", use_csi=True, sensor_id=0)
+        # self.cam2 = Camera(1, "Camera 2", use_csi=True, sensor_id=1)
 
 
         
@@ -611,10 +616,12 @@ class RobotControlWindow(QMainWindow):
         self.target_finded_cam1 = False
         self.colormask_cam2 = False
         self.target_finded_cam2 = False
-        
 
     def toggle_cameras(self, checked):
         if checked:
+            self.cam1.start_cap()
+            self.cam2.start_cap()
+            
             self.cam_toggle_btn.setText("Close Cameras")
             self.cameras_active = True
             self.timer.start(30)
@@ -624,6 +631,9 @@ class RobotControlWindow(QMainWindow):
             self.timer.stop()
             self.cam_label1.clear()
             self.cam_label2.clear()
+
+            self.cam1.release()
+            self.cam2.release()
             
     def update_camera_views(self):
         if self.cameras_active:
