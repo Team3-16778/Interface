@@ -661,7 +661,9 @@ class RobotControlWindow(QMainWindow):
         self.cam1 = Camera(0, "Camera 1", use_csi=True, sensor_id=0)
         self.cam2 = Camera(1, "Camera 2", use_csi=True, sensor_id=1)
 
-
+        self.cam1.get_internal_parameters("camera1_calibration_data.npz")
+        self.cam2.get_internal_parameters("camera2_calibration_data.npz")
+        self.cam2.get_external_parameters("cam2_external_parameters_2.npz")
         
         # Initialize 2 Arduinos
         # arduino1 is for gantry, arduino2 is for endeff
@@ -731,7 +733,8 @@ class RobotControlWindow(QMainWindow):
             # Camera 1 status
             if self.cam1.target_found and self.cam1.last_target_center:
                 cx, cy = self.cam1.last_target_center
-                self.cam1_detection_status.setText(f"Target at ({cx}, {cy})")
+                dis_x, dis_y = self.cam1.calculate_center_distance(cx, cy)
+                self.cam1_detection_status.setText(f"Target at ({cx}, {cy})\nDistance to the camera center: ({dis_x}, {dis_y})")
                 self.cam1_detection_status.setStyleSheet("color: green;")
             else:
                 self.cam1_detection_status.setText("No Target")
