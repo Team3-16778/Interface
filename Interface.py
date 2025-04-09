@@ -2,6 +2,7 @@ import sys
 import re
 import serial
 from serial.tools import list_ports
+import time
 from PyQt6.QtWidgets import (
     QApplication, QMainWindow, QWidget, QLabel, QPushButton, QSlider, QVBoxLayout,
     QHBoxLayout, QGroupBox, QGridLayout, QComboBox, QLCDNumber, QSizePolicy, QLineEdit
@@ -9,42 +10,62 @@ from PyQt6.QtWidgets import (
 from PyQt6.QtCore import Qt, QTimer, QThread, pyqtSignal
 from PyQt6.QtGui import QImage, QPixmap, QGuiApplication, QFont, QDoubleValidator
 from camera_utils import CSI_Camera, gstreamer_pipeline, colormask, calculate_world_3D
+from ColorMask import ColorMask
 import cv2
 import numpy as np
 
-from ColorMask import ColorMask
-
-
-
-from ColorMask import ColorMask
-from camera_utils import CSI_Camera
 import cv2
 import numpy as np
+from csi_camera import CSI_Camera, gstreamer_pipeline  # Or define them in the same file.
 
 class Camera:
-    def __init__(self, cam_index=0, name="Camera", use_csi=False, sensor_id=0):
+    def __init__(
+        self,
+        cam_index=0,
+        name="Camera",
+        use_csi=False,
+        sensor_id=0,
+        capture_width=3280,
+        capture_height=2464,
+        display_width=1920,
+        display_height=1080,
+        framerate=30,
+        flip_method=0
+    ):
         self.color_mask = ColorMask(camera_name=name)
         self.latest_frame = None
         self.target_found = False
-        self.last_target_center = None  # (x, y) coordinates
+        self.last_target_center = None
         self.use_csi = use_csi
 
         if use_csi:
-            self.cap = CSI_Camera(sensor_id=sensor_id)
-            self.cap.open(self.cap.gstreamer_pipeline())
+            # Build pipeline string for the CSI camera
+            pipeline = gstreamer_pipeline(
+                sensor_id=sensor_id,
+                capture_width=capture_width,
+                capture_height=capture_height,
+                display_width=display_width,
+                display_height=display_height,
+                framerate=framerate,
+                flip_method=flip_method,
+            )
+            self.cap = CSI_Camera()
+            self.cap.open(pipeline)
             self.cap.start()
         else:
+            # Standard USB camera
             self.cap = cv2.VideoCapture(cam_index)
 
     def read_frame(self):
         ret, frame = self.cap.read()
         if ret and frame is not None:
-            self.latest_frame = cv2.cvtColor(frame, cv2.COLOR_RGB2BGR)
+            # Convert from BGR to RGB (or vice versa, as needed)
+            self.latest_frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
             self.color_mask.set_frame(self.latest_frame)
         return ret, self.latest_frame
 
     def detect_target(self):
-        self.last_target_center = None  # reset before detection
+        self.last_target_center = None  # reset
         if self.latest_frame is None:
             return None, None, False
 
@@ -61,16 +82,11 @@ class Camera:
         return mask, overlay, found
 
     def get_display_frame(self, draw_bbox=True):
-        """
-        Returns the current frame (with optional bounding box drawn) in RGB format.
-        """
         if self.latest_frame is None:
             return None
-
         display_frame = self.latest_frame.copy()
         if draw_bbox and self.target_found and self.last_target_center:
             x, y = self.last_target_center
-            # Estimate bbox size or store it during detection
             mask, _, found = self.color_mask.apply(self.latest_frame)
             contours, _ = cv2.findContours(mask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
             if contours:
@@ -78,8 +94,8 @@ class Camera:
                 x, y, w, h = cv2.boundingRect(largest)
                 cv2.rectangle(display_frame, (x, y), (x + w, y + h), (0, 255, 0), 2)
 
-        return cv2.cvtColor(display_frame, cv2.COLOR_BGR2RGB)
-
+        # Convert back to BGR if you need to display it with OpenCV
+        return cv2.cvtColor(display_frame, cv2.COLOR_RGB2BGR)
 
     def get_center_of_mask(self):
         return self.last_target_center
@@ -90,9 +106,23 @@ class Camera:
     def release(self):
         if self.use_csi:
             self.cap.stop()
+            self.cap.release()
         else:
             self.cap.release()
 
+
+class GantryController:
+    def __init__(self, port, baudrate=9600, timeout=2):
+        self.ser = serial.Serial(port, baudrate, timeout=timeout)
+        time.sleep(2)  # Wait for Arduino to initialize
+
+    def move_to(self, x, y, z):
+        cmd = f"GOTO {x:.2f} {y:.2f} {z:.2f}\n"
+        self.ser.write(cmd.encode("utf-8"))
+        print(f"Sent: {cmd.strip()}")
+
+    def close(self):
+        self.ser.close()
 
 class RobotControlWindow(QMainWindow):
     def __init__(self):
@@ -276,6 +306,8 @@ class RobotControlWindow(QMainWindow):
         gantry_layout.setColumnStretch(0, 0)
         gantry_layout.setColumnStretch(1, 1)
         gantry_layout.setColumnStretch(2, 0)
+
+
 
         control_layout.addWidget(self.gantry_group, alignment=Qt.AlignmentFlag.AlignTop)
         
