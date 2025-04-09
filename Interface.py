@@ -33,24 +33,6 @@ class Camera:
         self.last_target_center = None
         self.use_csi = use_csi
 
-        # if use_csi:
-        #     # Build pipeline string for the CSI camera
-        #     pipeline = gstreamer_pipeline(
-        #         sensor_id=sensor_id,
-        #         capture_width=capture_width,
-        #         capture_height=capture_height,
-        #         display_width=display_width,
-        #         display_height=display_height,
-        #         framerate=framerate,
-        #         flip_method=flip_method,
-        #     )
-        #     self.cap = CSI_Camera()
-        #     self.cap.open(pipeline)
-        #     self.cap.start()
-        # else:
-        #     # Standard USB camera
-        #     self.cap = cv2.VideoCapture(cam_index)
-
         if use_csi:
             pipeline = (
                 "nvarguscamerasrc sensor-id={} ! "
@@ -61,14 +43,6 @@ class Camera:
             self.cap = cv2.VideoCapture(pipeline, cv2.CAP_GSTREAMER)
         else:
             self.cap = cv2.VideoCapture(cam_index)
-
-    # def read_frame(self):
-    #     ret, frame = self.cap.read()
-    #     if ret and frame is not None:
-    #         # Convert from BGR to RGB (or vice versa, as needed)
-    #         self.latest_frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
-    #         self.color_mask.set_frame(self.latest_frame)
-    #     return ret, self.latest_frame
 
     def read_frame(self):
         ret, frame = self.cap.read()
@@ -609,8 +583,8 @@ class RobotControlWindow(QMainWindow):
         # self.cam1 = CSI_Camera()
         # self.cam2 = CSI_Camera()
 
-        self.cam1 = Camera(0, "Camera 1", use_csi=True)
-        self.cam2 = Camera(1, "Camera 2", use_csi=True)
+        self.cam1 = Camera(0, "Camera 1", use_csi=True, sensor_id=0)
+        self.cam2 = Camera(1, "Camera 2", use_csi=True, sensor_id=1)
 
         
         # Initialize 2 Arduinos
