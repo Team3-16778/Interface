@@ -589,8 +589,8 @@ class RobotControlWindow(QMainWindow):
         # self.cam1 = CSI_Camera()
         # self.cam2 = CSI_Camera()
 
-        self.cam1 = Camera(0, "Camera 1")
-        self.cam2 = Camera(1, "Camera 2")
+        self.cam1 = Camera(0, "Camera 1", use_csi=True)
+        self.cam2 = Camera(1, "Camera 2", use_csi=True)
 
         
         # Initialize 2 Arduinos
