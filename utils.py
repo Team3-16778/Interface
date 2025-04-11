@@ -14,8 +14,6 @@ import cv2
 import numpy as np
 from ColorMask import ColorMask
 
-
-
 class Camera:
     def __init__(
         self,
