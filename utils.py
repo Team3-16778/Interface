@@ -138,31 +138,35 @@ class Gantry(QObject):
         self.target_updated.emit(*pos)
 
     def connect(self, port, baudrate=9600, timeout=2):
-        """Connect to the specified serial port"""
+        """Thread-safe connection with proper cleanup"""
         try:
-            # Disconnect first if already connected
+            # Skip if already connected to this port
+            if self.is_connected and self.port == port:
+                return True
+                
+            # Cleanup existing connection
             self.disconnect()
             
-            # Skip if port is invalid
-            if port in ["Waiting", "No ports available"]:
+            # Validate port
+            if not port or not isinstance(port, str):
                 return False
                 
+            # Attempt connection
             self.ser = serial.Serial(port, baudrate, timeout=timeout)
-            time.sleep(2)  # Wait for Arduino to initialize
+            time.sleep(1)  # Reduced wait time
             self.port = port
-            self.baudrate = baudrate
-            self.timeout = timeout
             self.is_connected = True
-            
-            # Optional: Request current position on connect
-            self.read_position()
-            
             return True
-        except Exception as e:
-            print(f"Failed to connect to gantry: {e}")
+            
+        except serial.SerialException as e:
+            print(f"Serial connection error: {e}")
             self.is_connected = False
             return False
-
+        except Exception as e:
+            print(f"Unexpected error: {e}")
+            self.is_connected = False
+            return False
+        
     def move_to(self, x, y, z):
         """Send movement command to gantry and update target position"""
         if not self.is_connected:
@@ -327,3 +331,19 @@ class SerialSenderThread(QThread):
         if self.arduino.is_open:
             self.arduino.write((self.command + "\n").encode("utf-8"))
 
+class ConnectionWorker(QObject):
+    finished = Signal(bool)  # Success status
+    
+    def __init__(self, gantry, port):
+        super().__init__()
+        self.gantry = gantry
+        self.port = port
+    
+    def run(self):
+        """Thread-safe connection attempt"""
+        try:
+            result = self.gantry.connect(self.port)
+            self.finished.emit(result)
+        except Exception as e:
+            print(f"Connection error: {e}")
+            self.finished.emit(False)

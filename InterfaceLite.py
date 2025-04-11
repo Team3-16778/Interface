@@ -13,7 +13,7 @@ from PySide6.QtGui import QImage, QPixmap, QGuiApplication, QFont, QDoubleValida
 import cv2
 import numpy as np
 from ColorMask import ColorMask
-from utils import Gantry, Camera, EndEffector
+from utils import Gantry, Camera, EndEffector, ConnectionWorker
 
 
 
@@ -24,7 +24,7 @@ class InterfaceLite(QMainWindow):
 
         ## ------------------ Inner Parameters ------------------
 
-        self.gantry_gui_enabled = False
+        self.last_connected_port = None
 
         ## ------------------ Window Setup ------------------
         self.setWindowTitle("Discount daVinci Control Interface")
@@ -141,6 +141,11 @@ class InterfaceLite(QMainWindow):
         self.gantry_refresh_btn.clicked.connect(self.update_gantry_ports)  # Fixed connection - no parentheses
         gantry_layout.addWidget(self.gantry_refresh_btn, 0, 2)
 
+        self.connection_status = QLabel("Disconnected")
+        self.connection_status.setAlignment(Qt.AlignCenter)
+        gantry_layout.addWidget(self.connection_status, 1, 0, 1, 3) 
+
+
         self.gantry_port_combo.currentTextChanged.connect(self.handle_gantry_port_change)
 
         # Add sliders and LCD displays for three steppers
@@ -184,6 +189,7 @@ class InterfaceLite(QMainWindow):
         gantry_layout.setColumnStretch(2, 0)
 
         control_layout.addWidget(self.gantry_group, alignment=Qt.AlignmentFlag.AlignTop)
+        self.update_gantry_ports()
 
 
         
@@ -457,14 +463,29 @@ class InterfaceLite(QMainWindow):
     ##### GANTRY GUI CONTROLS #####
     
     def update_gantry_ports(self):
-        """Refresh available serial ports for gantry"""
-        ports = list_ports.comports()
+        """Refresh available serial ports without triggering errors"""
+        # Store current selection
+        current_port = self.gantry_port_combo.currentText()
+        
+        # Block signals during update
+        self.gantry_port_combo.blockSignals(True)
+        
+        # Clear and repopulate
         self.gantry_port_combo.clear()
-        port_names = [port.device for port in ports]
-        if not port_names:
-            port_names = ["No ports available"]
-        self.gantry_port_combo.addItems(port_names)
-        print("Gantry ports updated:", port_names)
+        ports = [port.device for port in list_ports.comports()]
+        
+        if not ports:
+            self.gantry_port_combo.addItem("No ports available")
+        else:
+            self.gantry_port_combo.addItems(ports)
+            # Restore previous selection if still available
+            if current_port in ports:
+                self.gantry_port_combo.setCurrentText(current_port)
+        
+        # Restore signal handling
+        self.gantry_port_combo.blockSignals(False)
+        
+        print("Ports updated:", ports or "No ports found")
 
     def toggle_gantry_control(self, enabled):
         """Handle gantry control toggle"""
@@ -517,14 +538,59 @@ class InterfaceLite(QMainWindow):
             lcd.display(int([x, y, z][i]))
 
     def handle_gantry_port_change(self, port):
-        """Handle when the gantry port selection changes"""
-        if port not in ["Waiting", "No ports available"]:
-            if not self.gantry.connect(port):
-                print(f"Failed to connect to {port}")
-                # Optionally show a message to the user
-        else:
-            self.gantry.disconnect()
+        """Handle port selection without freezing GUI"""
+        # Ignore placeholder texts
+        if not port or port in ["No ports available"]:
+            self.update_connection_status("Disconnected", "red")
+            return
         
+        # Show connecting status immediately
+        self.update_connection_status(f"Connecting to {port}...", "orange")
+        
+        # Setup worker thread
+        self.connection_thread = QThread()
+        self.connection_worker = ConnectionWorker(self.gantry, port)
+        self.connection_worker.moveToThread(self.connection_thread)
+        
+        # Connect signals
+        self.connection_thread.started.connect(self.connection_worker.run)
+        self.connection_worker.finished.connect(self.handle_connection_result)
+        self.connection_worker.finished.connect(self.connection_thread.quit)
+        self.connection_worker.finished.connect(self.connection_worker.deleteLater)
+        self.connection_thread.finished.connect(self.connection_thread.deleteLater)
+        
+        # Start the thread
+        self.connection_thread.start()
+
+    def update_connection_status(self, text, color):
+        """Update connection status label"""
+        self.connection_status.setText(text)
+        self.connection_status.setStyleSheet(f"color: {color}; font-weight: bold;")
+
+    def handle_connection_result(self, success):
+        """Handle the final connection result"""
+        if success:
+            self.update_connection_status(f"Connected to {self.gantry.port}", "green")
+        else:
+            self.update_connection_status("Connection failed", "red")
+            # Revert to previous port if available
+            if hasattr(self, 'last_connected_port'):
+                self.gantry_port_combo.setCurrentText(self.last_connected_port)
+            
+
+    ##### WINDOW CLOSE HANDLER #####
+    def closeEvent(self, event):
+        """Clean up threads when closing the window"""
+        # Stop any ongoing connection attempts
+        if hasattr(self, 'connection_thread') and self.connection_thread.isRunning():
+            self.connection_thread.quit()
+            self.connection_thread.wait(500)  # Wait up to 500ms
+        
+        # Disconnect hardware
+        self.gantry.disconnect()
+        
+        # Proceed with normal close
+        event.accept()
 
 if __name__ == "__main__":
     app = QApplication(sys.argv)
