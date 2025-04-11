@@ -147,8 +147,14 @@ class InterfaceLite(QMainWindow):
 
         # Initialize GantryController
         self.gantry = Gantry()
-        # self.gantry.position_updated.connect(self.update_gantry_position_display)
-        # self.gantry.target_updated.connect(self.update_gantry_target_display)
+
+        print("Has position_updated:", hasattr(self.gantry, "position_updated"))
+        print("Type:", type(self.gantry))
+        print("Signals:", dir(self.gantry))
+
+
+        self.gantry.position_updated.connect(self.update_gantry_position_display)
+        self.gantry.target_updated.connect(self.update_gantry_target_display)
 
         # USB port selection and refresh button
         gantry_layout.addWidget(QLabel("USB Port:"), 0, 0)
