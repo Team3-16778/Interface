@@ -31,13 +31,13 @@ class Camera:
         self.use_csi = use_csi
         self.sensor_id = sensor_id
         self.cam_index = cam_index
-        # gstreamer parameters
-        self.capture_width=capture_width,
-        self.capture_height=capture_height,
-        self.display_width=display_width,
-        self.display_height=display_height,
-        self.framerate=framerate,
-        self.flip_method=flip_method        
+        # # gstreamer parameters
+        # self.capture_width=capture_width,
+        # self.capture_height=capture_height,
+        # self.display_width=display_width,
+        # self.display_height=display_height,
+        # self.framerate=framerate,
+        # self.flip_method=flip_method        
         # Internal Parameters
         self.camera_matrix = None
         self.dist_coeffs = None
