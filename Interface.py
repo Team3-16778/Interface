@@ -636,10 +636,9 @@ class RobotControlWindow(QMainWindow):
 
 
         self.arduino1 = None
-        self.arduino1_rate = 115200
+        self.arduino1_rate = 9600
         self.serial_thread1 = None
-        self.arduino2 = None
-        self.arduino2_rate = 115200
+        self.arduino2_rate = 9600
         self.serial_thread2 = None
         self.sender_threads = []
 
@@ -818,7 +817,7 @@ class RobotControlWindow(QMainWindow):
 
         print(f"Moving to: X{self.gantry_pos_des_x} Y{self.gantry_pos_des_y} Z{self.gantry_pos_des_z} Servo{self.endeff_pos_des_servo} Linear{self.endeff_pos_des_linear}")
         if self.arduino1 is not None:
-            command_1 = f"Gantry move to: X{self.gantry_pos_des_x} Y{self.gantry_pos_des_y} Z{self.gantry_pos_des_z}"
+            command_1 = f"GOTO {self.gantry_pos_des_x} {self.gantry_pos_des_y} {self.gantry_pos_des_z}"
             self.send_command_in_thread_once(self.arduino1, command_1)
         if self.arduino2 is not None:
             command_2 = f"Endeffector move to: Servo{self.endeff_pos_des_servo} Linear{self.endeff_pos_des_linear}"
