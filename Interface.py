@@ -1,3 +1,4 @@
+import os
 import sys
 import re
 import serial
@@ -14,105 +15,6 @@ from ColorMask import ColorMask
 import cv2
 import numpy as np
 
-class GantryController(QObject):
-    position_updated = Signal(float, float, float)  # Signal for position updates
-    
-    def __init__(self, port=None, baudrate=9600, timeout=2):
-        super().__init__()
-        self.ser = None
-        self.port = port
-        self.baudrate = baudrate
-        self.timeout = timeout
-        self.is_connected = False
-        self.current_x = 0.0
-        self.current_y = 0.0
-        self.current_z = 0.0
-        
-        if port is not None:
-            self.connect(port, baudrate, timeout)
-
-    def connect(self, port, baudrate=9600, timeout=2):
-        """Connect to the specified serial port"""
-        try:
-            if self.ser is not None and self.ser.is_open:
-                self.ser.close()
-                
-            self.ser = serial.Serial(port, baudrate, timeout=timeout)
-            time.sleep(2)  # Wait for Arduino to initialize
-            self.port = port
-            self.baudrate = baudrate
-            self.timeout = timeout
-            self.is_connected = True
-            return True
-        except Exception as e:
-            print(f"Failed to connect to gantry: {e}")
-            self.is_connected = False
-            return False
-
-    def disconnect(self):
-        """Disconnect from the serial port"""
-        if self.ser is not None and self.ser.is_open:
-            self.ser.close()
-        self.is_connected = False
-
-    def move_to(self, x, y, z):
-        """Send movement command to gantry"""
-        if not self.is_connected:
-            print("Gantry not connected!")
-            return False
-            
-        try:
-            cmd = f"GOTO {x:.2f} {y:.2f} {z:.2f}\n"
-            self.ser.write(cmd.encode("utf-8"))
-            print(f"Sent: {cmd.strip()}")
-            return True
-        except Exception as e:
-            print(f"Error sending gantry command: {e}")
-            return False
-
-    def home(self):
-        """Send homing command to gantry"""
-        if not self.is_connected:
-            print("Gantry not connected!")
-            return False
-            
-        try:
-            cmd = "HOME\n"
-            self.ser.write(cmd.encode("utf-8"))
-            print("Sent: HOME")
-            return True
-        except Exception as e:
-            print(f"Error sending homing command: {e}")
-            return False
-
-    def read_position(self):
-        """Read current position from gantry (if supported)"""
-        if not self.is_connected:
-            print("Gantry not connected!")
-            return None
-            
-        try:
-            self.ser.write("GETPOS\n".encode("utf-8"))
-            response = self.ser.readline().decode("utf-8").strip()
-            if response.startswith("Current Position:"):
-                # Example format: "Current Position: X10.00 Y20.00 Z30.00"
-                parts = response.split()
-                if len(parts) >= 6:
-                    x = float(parts[2][1:])  # Remove 'X' prefix
-                    y = float(parts[3][1:])  # Remove 'Y' prefix
-                    z = float(parts[4][1:])  # Remove 'Z' prefix
-                    self.current_x = x
-                    self.current_y = y
-                    self.current_z = z
-                    self.position_updated.emit(x, y, z)
-                    return (x, y, z)
-        except Exception as e:
-            print(f"Error reading position: {e}")
-        return None
-
-    def __del__(self):
-        self.disconnect()
-
 class Camera:
     def __init__(
         self,
@@ -120,6 +22,7 @@ class Camera:
         name="Camera",
         use_csi=False,
         sensor_id=0,
+
     ):
         self.color_mask = ColorMask(camera_name=name)
         self.latest_frame = None
@@ -128,15 +31,28 @@ class Camera:
         self.use_csi = use_csi
         self.sensor_id = sensor_id
         self.cam_index = cam_index
+        # gstreamer parameters
+        self.capture_width=capture_width,
+        self.capture_height=capture_height,
+        self.display_width=display_width,
+        self.display_height=display_height,
+        self.framerate=framerate,
+        self.flip_method=flip_method        
+        # Internal Parameters
+        self.camera_matrix = None
+        self.dist_coeffs = None
+        # External Parameters
+        self.Rotation_matrix = None
+        self.Translation_vector = None
 
     def start_cap(self):
         if self.use_csi:
             pipeline = (
                 "nvarguscamerasrc sensor-id={} ! "
-                "video/x-raw(memory:NVMM), width=1280, height=720, format=(string)NV12, "
-                "framerate=(fraction)21/1 ! nvvidconv ! video/x-raw, format=(string)BGRx ! "
+                "video/x-raw(memory:NVMM), width={}, height={}, format=(string)NV12, "
+                "framerate=(fraction){}/1 ! nvvidconv ! video/x-raw, format=(string)BGRx ! "
                 "videoconvert ! video/x-raw, format=(string)BGR ! appsink"
-            ).format(self.sensor_id)
+            ).format(self.sensor_id, self.capture_width, self.capture_height, self.framerate)
             self.cap = cv2.VideoCapture(pipeline, cv2.CAP_GSTREAMER)
         else:
             self.cap = cv2.VideoCapture(self.cam_index)
@@ -199,6 +115,66 @@ class Camera:
         else:
             # If it’s just plain cv2.VideoCapture(...) with a GStreamer pipeline
             self.cap.release()
+
+    def get_internal_parameters(self, file_name):
+        camera_internal_file = dir_path + "/" + file_name
+        internal_data = np.load(camera_internal_file)
+        self.camera_matrix = internal_data["camera_matrix"]
+        self.dist_coeffs = internal_data["dist_coeffs"]
+        print("Camera Matrix: \n", self.camera_matrix)
+        print("Distortion Coefficients: \n", self.dist_coeffs)
+
+    def get_external_parameters(self, file_name):
+        camera_external_file = dir_path + "/" + file_name
+        T_world_camera = np.load(camera_external_file)["T_world_camera"]
+        self.Rotation_matrix = T_world_camera[0:3, 0:3]
+        self.Translation_vector = T_world_camera[0:3, 3].reshape(3, 1)    
+
+    def calculate_center_distance(self, u, v):
+        """
+        Calculate the distance from the target point to the camera center
+        """
+        if self.camera_matrix is None:
+            print("No internal parameters!!!")
+            return None, None
+        cx = self.camera_matrix[0, 2]
+        cy = self.camera_matrix[1, 2]
+        # print(f"Center(Pixel): {cx} {cy}")        
+        return u-cx, v-cy
+    
+    def calculate_world_3D(self, u, v, Zc = 0.5):# Zc is the distance from the camera to the target(default is a random value)
+        """
+        Calculate the 3D coordinates of the target in the world frame
+        Input:
+            u: x coordinate of the target in the image
+            v: y coordinate of the target in the image
+            Zc: depth of the target in the camera frame (distance from the camera to the target)
+        Output:
+            world_point: 3D coordinates of the target in the world frame
+        """
+        # Get the parameters we need: focal length, principal point, and rotation vector and translation vector
+        if (self.camera_matrix is None or self.Rotation_matrix is None or self.Translation_vector is None):
+            return None
+        fx = self.camera_matrix[0, 0]
+        fy = self.camera_matrix[1, 1]
+        cx = self.camera_matrix[0, 2]
+        cy = self.camera_matrix[1, 2]
+        Rotation_matrix = self.Rotation_matrix
+        Translation_vector = self.Translation_vector
+
+        # 4. Compute the 3D coordinates of the target in the camera frame
+        Xc = (u - cx) * Zc / fx
+        Yc = (v - cy) * Zc / fy
+        camera_point = np.array([[Xc], [Yc], [Zc]])
+
+        # 5. Compute the 3D coordinates of the target in the world frame
+        # Method 1: external parameters is T_world_camera
+        world_point = Rotation_matrix @ camera_point + Translation_vector
+
+        # Method 2: external parameters is T_camera_world
+        # world_point = Rotation_matrix.T @ (camera_point - Translation_vector)
+
+        return world_point.flatten()
 
 
 class GantryController:
@@ -656,6 +632,7 @@ class RobotControlWindow(QMainWindow):
         self.cam1 = Camera(0, "Camera 1", use_csi=True, sensor_id=0)
         self.cam2 = Camera(1, "Camera 2", use_csi=True, sensor_id=1)
 
+
         self.arduino1 = None
         self.arduino1_rate = 115200
         self.serial_thread1 = None
@@ -716,16 +693,18 @@ class RobotControlWindow(QMainWindow):
                     self.cam_label2.setPixmap(QPixmap.fromImage(image2).scaled(self.cam_label2.size(), Qt.AspectRatioMode.KeepAspectRatio))
 
             if self.cam1.target_found and self.cam1.last_target_center:
-                cx, cy = self.cam1.last_target_center
-                self.cam1_detection_status.setText(f"Target at ({cx}, {cy})")
+                c1x, c1y = self.cam1.last_target_center
+                dis1_x, dis1_y = self.cam1.calculate_center_distance(c1x, c1y)
+                self.cam1_detection_status.setText(f"Target at ({c1x}, {c1y})\nDistance to the camera center: ({dis1_x}, {dis1_y})")
                 self.cam1_detection_status.setStyleSheet("color: green;")
             else:
                 self.cam1_detection_status.setText("No Target")
                 self.cam1_detection_status.setStyleSheet("color: red;")
 
             if self.cam2.target_found and self.cam2.last_target_center:
-                cx, cy = self.cam2.last_target_center
-                self.cam2_detection_status.setText(f"Target at ({cx}, {cy})")
+                c2x, c2y = self.cam2.last_target_center
+                target_3D = self.cam2.calculate_world_3D(c2x, c2y)
+                self.cam2_detection_status.setText("Target at ({}, {})\n3D Coordinate of the world frame: ({:.2f}, {:.2f}, {:.2f})".format(c2x,c2y,target_3D[0],target_3D[1],target_3D[2]))
                 self.cam2_detection_status.setStyleSheet("color: green;")
             else:
                 self.cam2_detection_status.setText("No Target")
