@@ -216,120 +216,118 @@ class Gantry(QObject):
             print(f"Position read failed: {e}")
         return None
     
-
 class EndEffector(QObject):
-    position_updated = Signal(float, float)  # (pitch, extension)
-    target_updated = Signal(float, float)    # (pitch, extension)
+    position_updated = Signal(float, float)  # Current position (theta, x)
+    target_updated = Signal(float, float)    # Target position (theta, x)
     
     def __init__(self, port=None, baudrate=9600, timeout=2):
         super().__init__()
         self.ser = None
+        self.port = port
+        self.baudrate = baudrate
+        self.timeout = timeout
         self.is_connected = False
         
-        # Current and target states
-        self._current_pitch = 90.0    # Default to 90° (neutral position)
-        self._current_extension = 0.0 # Default to 0mm retracted
-        self._target_pitch = 90.0
-        self._target_extension = 0.0
+        # End effector state
+        self._current_theta = 0.0  # Rotation angle (degrees)
+        self._current_x = 0.0       # Linear position (mm)
+        self._target_theta = 90.0   # Default values (middle positions)
+        self._target_x = 50.0
+        
+        if port is not None:
+            self.connect(port, baudrate, timeout)
 
     @property
     def current_position(self):
-        return (self._current_pitch, self._current_extension)
+        return (self._current_theta, self._current_x)
         
-    @property 
+    @property
     def target_position(self):
-        return (self._target_pitch, self._target_extension)
+        return (self._target_theta, self._target_x)
         
     @target_position.setter
     def target_position(self, pos):
-        pitch, extension = pos
-        self._target_pitch = pitch
-        self._target_extension = extension
-        self.target_updated.emit(pitch, extension)
+        self._target_theta, self._target_x = pos
+        self.target_updated.emit(*pos)
 
     def connect(self, port, baudrate=9600, timeout=2):
-        """Establish serial connection"""
+        """Thread-safe connection with proper cleanup"""
         try:
-            if self.ser is not None:
-                self.ser.close()
+            # Skip if already connected to this port
+            if self.is_connected and self.port == port:
+                return True
+                
+            # Cleanup existing connection
+            self.disconnect()
+            
+            # Validate port
+            if not port or not isinstance(port, str):
+                return False
+                
+            # Attempt connection
             self.ser = serial.Serial(port, baudrate, timeout=timeout)
-            time.sleep(2)  # Allow Arduino to initialize
+            time.sleep(1)  # Reduced wait time
+            self.port = port
             self.is_connected = True
             return True
-        except Exception as e:
-            print(f"EndEffector connection failed: {e}")
+            
+        except serial.SerialException as e:
+            print(f"Serial connection error: {e}")
+            self.is_connected = False
             return False
-
+        except Exception as e:
+            print(f"Unexpected error: {e}")
+            self.is_connected = False
+            return False
+        
+    def move_to(self, theta, x):
+        """Send movement command to end effector and update target position"""
+        if not self.is_connected:
+            print("End effector not connected!")
+            return False
+            
+        try:
+            cmd = f"EEGOTO {theta:.2f} {x:.2f}\n"
+            self.ser.write(cmd.encode("utf-8"))
+            print(f"Sent: {cmd.strip()}")
+            self.target_position = (theta, x)  # Update target and emit signal
+            return True
+        except Exception as e:
+            print(f"Error sending end effector command: {e}")
+            return False
+        
     def disconnect(self):
-        """Close serial connection"""
+        """Properly disconnect from the serial port"""
         if self.ser and self.ser.is_open:
             self.ser.close()
         self.is_connected = False
 
-    def move_to(self, pitch, extension):
-        """Send movement command"""
+    def home(self):
+        """Send homing command to end effector"""
         if not self.is_connected:
-            print("EndEffector not connected!")
             return False
-            
         try:
-            cmd = f"EE_MOVE {pitch:.1f} {extension:.1f}\n"
-            self.ser.write(cmd.encode("utf-8"))
-            self.target_position = (pitch, extension)
+            self.ser.write(b"EEHOME\n")
             return True
         except Exception as e:
-            print(f"EndEffector command failed: {e}")
+            print(f"Homing failed: {e}")
             return False
 
     def read_position(self):
-        """Request current position"""
+        """Request and parse current position from hardware"""
         if not self.is_connected:
             return None
-            
         try:
-            self.ser.write(b"EE_GETPOS\n")
+            self.ser.write(b"EEGETPOS\n")
             response = self.ser.readline().decode().strip()
-            if response.startswith("EE_POS:"):
-                pitch, extension = map(float, response.split()[1:3])
-                self._current_pitch = pitch
-                self._current_extension = extension
-                self.position_updated.emit(pitch, extension)
-                return (pitch, extension)
+            if response.startswith("EEPOS:"):  # Example format
+                theta, x = map(float, response.split()[1:3])
+                self._current_theta, self._current_x = theta, x
+                self.position_updated.emit(theta, x)
+                return (theta, x)
         except Exception as e:
-            print(f"EndEffector position read failed: {e}")
+            print(f"Position read failed: {e}")
         return None
-
-class SerialReaderThread(QThread):
-    data_received = Signal(str)
-    def __init__(self, serial_port):
-        super().__init__()
-        self.serial_port = serial_port
-        self.running = True
-
-    def run(self):
-        while self.running:
-            if self.serial_port.in_waiting:
-                try:
-                    data = self.serial_port.readline().decode('utf-8').strip()
-                    if data:
-                        self.data_received.emit(data)
-                except Exception as e:
-                    print("Error reading serial:", e)
-            self.msleep(1)
-
-    def stop(self):
-        self.running = False
-        self.wait()
-
-class SerialSenderThread(QThread):
-    def __init__(self, arduino, command):
-        super().__init__()
-        self.arduino = arduino
-        self.command = command
-
-    def run(self):
-        if self.arduino.is_open:
-            self.arduino.write((self.command + "\n").encode("utf-8"))
 
 class ConnectionWorker(QObject):
     finished = Signal(bool)  # Success status

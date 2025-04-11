@@ -13,7 +13,7 @@ from PySide6.QtGui import QImage, QPixmap, QGuiApplication, QFont, QDoubleValida
 import cv2
 import numpy as np
 from ColorMask import ColorMask
-from utils import Gantry, Camera, EndEffector, ConnectionWorker
+from utils import Gantry, Camera, ConnectionWorker, EndEffector
 
 
 
@@ -25,6 +25,7 @@ class InterfaceLite(QMainWindow):
         ## ------------------ Inner Parameters ------------------
 
         self.last_connected_port = None
+        self.last_ee_connected_port = None
 
         ## ------------------ Window Setup ------------------
         self.setWindowTitle("Discount daVinci Control Interface")
@@ -113,14 +114,11 @@ class InterfaceLite(QMainWindow):
 
         right_layout.addLayout(camera_controls_layout)
 
-        # ------------------ Left Top: Control Panels ------------------
-
+                # ------------------ Left Top: Control Panels ------------------
         control_layout = QHBoxLayout()
         left_layout.addLayout(control_layout)
 
-        # Gantry Control Panel
-
-        # Gantry Control Panel
+        # Gantry Control Panel (existing code)
         self.gantry_group = QGroupBox("Gantry Control")
         self.gantry_group.setFont(font_label)
         self.gantry_group.setStyleSheet("QGroupBox * { font-size: 12px; font-weight: normal; }")
@@ -138,13 +136,12 @@ class InterfaceLite(QMainWindow):
         self.gantry_port_combo.addItems(["Waiting"])
         gantry_layout.addWidget(self.gantry_port_combo, 0, 1)
         self.gantry_refresh_btn = QPushButton("Refresh\nPorts")
-        self.gantry_refresh_btn.clicked.connect(self.update_gantry_ports)  # Fixed connection - no parentheses
+        self.gantry_refresh_btn.clicked.connect(self.update_gantry_ports)
         gantry_layout.addWidget(self.gantry_refresh_btn, 0, 2)
 
         self.connection_status = QLabel("Disconnected")
         self.connection_status.setAlignment(Qt.AlignCenter)
         gantry_layout.addWidget(self.connection_status, 1, 0, 1, 3) 
-
 
         self.gantry_port_combo.currentTextChanged.connect(self.handle_gantry_port_change)
 
@@ -189,69 +186,87 @@ class InterfaceLite(QMainWindow):
         gantry_layout.setColumnStretch(2, 0)
 
         control_layout.addWidget(self.gantry_group, alignment=Qt.AlignmentFlag.AlignTop)
-        self.update_gantry_ports()
 
+        # ------------------ End Effector Control Panel ------------------
+        self.ee_group = QGroupBox("End Effector Control")
+        self.ee_group.setFont(font_label)
+        self.ee_group.setStyleSheet("QGroupBox * { font-size: 12px; font-weight: normal; }")
+        ee_layout = QGridLayout()
+        self.ee_group.setLayout(ee_layout)
 
-        
-        # End-Effector Control Panel
-        self.endeff_group = QGroupBox("End-Effector Control")
-        self.endeff_group.setFont(font_label)
-        self.endeff_group.setStyleSheet("QGroupBox * { font-size: 12px; font-weight: normal; }")
-        endeff_layout = QGridLayout()
-        self.endeff_group.setLayout(endeff_layout)
+        # Initialize EndEffector
+        self.end_effector = EndEffector()
+        self.end_effector.position_updated.connect(self.update_ee_position_display)
+        self.end_effector.target_updated.connect(self.update_ee_target_display)
+
         # USB port selection and refresh button
-        endeff_layout.addWidget(QLabel("USB Port:"), 0, 0)
-        self.endeff_port_combo = QComboBox()
-        self.endeff_port_combo.addItems(["Waiting"])
-        endeff_layout.addWidget(self.endeff_port_combo, 0, 1)
-        self.endeff_refresh_btn = QPushButton("Refresh\nPorts")
-        # self.endeff_refresh_btn.clicked.connect(self.update_endeff_ports) <<<<<<<<<<<<<<<<<<<<<<<<<<<<
-        endeff_layout.addWidget(self.endeff_refresh_btn, 0, 2)
-        # Instead of 'Enable GUI Control', rename to 'Send Positional Command'
-        self.endeff_gui_toggle = QPushButton("Send Positional Command")
-        self.endeff_gui_toggle.setMaximumHeight(50)
-        self.endeff_gui_toggle.setCheckable(True)
-        self.endeff_gui_toggle.setChecked(False)
-        # self.endeff_gui_toggle.toggled.connect(self.toggle_endeff_gui) <<<<<<<<<<<<<<<<<<<<<<<<<<<<
-        endeff_layout.addWidget(self.endeff_gui_toggle, 1, 0, 1, 3)
-        # Servo control slider
-        servo_label = QLabel("Servo\nControl")
-        servo_label.setFixedWidth(60)
-        endeff_layout.addWidget(servo_label, 2, 0)
-        self.servo_slider = QSlider(Qt.Orientation.Horizontal)
-        self.servo_slider.setRange(0, 180)
-        self.servo_slider.setValue(90)
-        self.servo_slider.setMinimumWidth(150)
-        self.servo_slider.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Fixed)
-        self.servo_slider.valueChanged.connect(lambda value: self.update_endeff("servo", value))
-        self.servo_lcd = QLCDNumber()
-        self.servo_lcd.setSegmentStyle(QLCDNumber.SegmentStyle.Flat)
-        self.servo_lcd.display(90)
-        self.servo_lcd.setFixedWidth(60)
-        self.servo_slider.valueChanged.connect(self.servo_lcd.display)
-        endeff_layout.addWidget(self.servo_slider, 2, 1)
-        endeff_layout.addWidget(self.servo_lcd, 2, 2)
-        # Linear actuator slider
-        syringe_label = QLabel("Syringe\nPosition")
-        syringe_label.setFixedWidth(60)
-        endeff_layout.addWidget(syringe_label, 3, 0)
-        endeff_layout.addWidget(QLabel("Syringe\nPosition"), 3, 0)
-        self.linear_slider = QSlider(Qt.Orientation.Horizontal)
-        self.linear_slider.setRange(0, 100)
-        self.linear_slider.setValue(50)
-        self.linear_slider.setMinimumWidth(150)
-        self.linear_slider.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Fixed)
-        self.linear_slider.valueChanged.connect(lambda value: self.update_endeff("linear", value))
-        self.linear_lcd = QLCDNumber()
-        self.linear_lcd.setSegmentStyle(QLCDNumber.SegmentStyle.Flat)
-        self.linear_lcd.display(50)
-        self.linear_lcd.setFixedWidth(60)
-        self.linear_slider.valueChanged.connect(self.linear_lcd.display)
-        endeff_layout.addWidget(self.linear_slider, 3, 1)
-        endeff_layout.addWidget(self.linear_lcd, 3, 2)
+        ee_layout.addWidget(QLabel("USB Port:"), 0, 0)
+        self.ee_port_combo = QComboBox()
+        self.ee_port_combo.addItems(["Waiting"])
+        ee_layout.addWidget(self.ee_port_combo, 0, 1)
+        self.ee_refresh_btn = QPushButton("Refresh\nPorts")
+        self.ee_refresh_btn.clicked.connect(self.update_ee_ports)
+        ee_layout.addWidget(self.ee_refresh_btn, 0, 2)
 
-        control_layout.addWidget(self.endeff_group, alignment=Qt.AlignmentFlag.AlignTop)
-        
+        self.ee_connection_status = QLabel("Disconnected")
+        self.ee_connection_status.setAlignment(Qt.AlignCenter)
+        ee_layout.addWidget(self.ee_connection_status, 1, 0, 1, 3)
+
+        self.ee_port_combo.currentTextChanged.connect(self.handle_ee_port_change)
+
+        # Add sliders and LCD displays for theta and x
+        self.ee_sliders = []
+        self.ee_lcds = []
+        ee_labels = ["Rotation (θ)", "Linear (X)"]
+        ee_ranges = [(0, 180), (0, 100)]  # Theta: 0-180 degrees, X: 0-100 mm
+
+        for i in range(2):
+            row = i + 2
+            
+            # Label
+            label = QLabel(ee_labels[i])
+            label.setFixedWidth(80)
+            
+            # Slider
+            slider = QSlider(Qt.Orientation.Horizontal)
+            slider.setRange(ee_ranges[i][0], ee_ranges[i][1])
+            slider.setValue(ee_ranges[i][1] // 2)  # Start at middle position
+            slider.setMinimumWidth(150)
+            slider.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Fixed)
+            slider.valueChanged.connect(lambda value, idx=i: self.on_ee_slider_change(idx, value))
+            self.ee_sliders.append(slider)
+            
+            # LCD Display
+            lcd = QLCDNumber()
+            lcd.setSegmentStyle(QLCDNumber.SegmentStyle.Flat)
+            lcd.display(ee_ranges[i][1] // 2)
+            lcd.setFixedWidth(80)
+            self.ee_lcds.append(lcd)
+            
+            # Connect slider to LCD
+            slider.valueChanged.connect(lcd.display)
+            
+            # Add to layout
+            ee_layout.addWidget(label, row, 0)
+            ee_layout.addWidget(slider, row, 1)
+            ee_layout.addWidget(lcd, row, 2)
+
+        # Homing button
+        self.ee_home_btn = QPushButton("Home End Effector")
+        self.ee_home_btn.clicked.connect(self.end_effector.home)
+        ee_layout.addWidget(self.ee_home_btn, 4, 0, 1, 3)
+
+        ee_layout.setColumnStretch(0, 0)
+        ee_layout.setColumnStretch(1, 1)
+        ee_layout.setColumnStretch(2, 0)
+
+        control_layout.addWidget(self.ee_group, alignment=Qt.AlignmentFlag.AlignTop)
+
+        # Update ports for both gantry and end effector
+        self.update_gantry_ports()
+        self.update_ee_ports()
+
+
         # ------------------ Left Bottom: Button Groups ------------------
         button_layout = QVBoxLayout()
         left_layout.addLayout(button_layout, stretch=1)
@@ -456,8 +471,6 @@ class InterfaceLite(QMainWindow):
 
         button_layout.addLayout(up_row_layout)
         button_layout.addLayout(down_row_layout)
-        
-
 
 
     ##### GANTRY GUI CONTROLS #####
@@ -576,7 +589,98 @@ class InterfaceLite(QMainWindow):
             # Revert to previous port if available
             if hasattr(self, 'last_connected_port'):
                 self.gantry_port_combo.setCurrentText(self.last_connected_port)
-            
+                
+    ### END EFFECTOR GUI CONTROLS ###
+    
+    def update_ee_ports(self):
+        """Refresh available serial ports for end effector"""
+        current_port = self.ee_port_combo.currentText()
+        
+        self.ee_port_combo.blockSignals(True)
+        self.ee_port_combo.clear()
+        ports = [port.device for port in list_ports.comports()]
+        
+        if not ports:
+            self.ee_port_combo.addItem("No ports available")
+        else:
+            self.ee_port_combo.addItems(ports)
+            if current_port in ports:
+                self.ee_port_combo.setCurrentText(current_port)
+        
+        self.ee_port_combo.blockSignals(False)
+
+    def on_ee_slider_change(self, axis, value):
+        """Handle end effector slider changes"""
+        if not self.end_effector.is_connected:
+            return
+        
+        # Get current target from controller
+        current_target = list(self.end_effector.target_position)
+        
+        # Update the appropriate axis
+        current_target[axis] = float(value)
+        
+        # Update through controller (will emit target_updated signal)
+        self.end_effector.target_position = tuple(current_target)
+        
+        # Send move command immediately
+        self.end_effector.move_to(*current_target)
+
+    def update_ee_position_display(self, theta, x):
+        """Update UI with current end effector position"""
+        self.ee_pos_servo.setText(f"{theta:.2f}")
+        self.ee_pos_linear.setText(f"{x:.2f}")
+
+    def update_ee_target_display(self, theta, x):
+        """Update UI with target end effector position"""
+        # Update sliders without triggering valueChanged signals
+        for i, slider in enumerate(self.ee_sliders):
+            slider.blockSignals(True)
+            slider.setValue(int([theta, x][i]))
+            slider.blockSignals(False)
+        
+        # Update LCD displays
+        for i, lcd in enumerate(self.ee_lcds):
+            lcd.display(int([theta, x][i]))
+
+    def handle_ee_port_change(self, port):
+        """Handle port selection for end effector without freezing GUI"""
+        if not port or port in ["No ports available"]:
+            self.update_ee_connection_status("Disconnected", "red")
+            return
+        
+        self.update_ee_connection_status(f"Connecting to {port}...", "orange")
+        
+        # Setup worker thread
+        self.ee_connection_thread = QThread()
+        self.ee_connection_worker = ConnectionWorker(self.end_effector, port)
+        self.ee_connection_worker.moveToThread(self.ee_connection_thread)
+        
+        # Connect signals
+        self.ee_connection_thread.started.connect(self.ee_connection_worker.run)
+        self.ee_connection_worker.finished.connect(self.handle_ee_connection_result)
+        self.ee_connection_worker.finished.connect(self.ee_connection_thread.quit)
+        self.ee_connection_worker.finished.connect(self.ee_connection_worker.deleteLater)
+        self.ee_connection_thread.finished.connect(self.ee_connection_thread.deleteLater)
+        
+        # Start the thread
+        self.ee_connection_thread.start()
+
+    def update_ee_connection_status(self, text, color):
+        """Update end effector connection status label"""
+        self.ee_connection_status.setText(text)
+        self.ee_connection_status.setStyleSheet(f"color: {color}; font-weight: bold;")
+
+    def handle_ee_connection_result(self, success):
+        """Handle the final connection result for end effector"""
+        if success:
+            self.update_ee_connection_status(f"Connected to {self.end_effector.port}", "green")
+            self.last_ee_connected_port = self.end_effector.port
+        else:
+            self.update_ee_connection_status("Connection failed", "red")
+            # Revert to previous port if available
+            if self.last_ee_connected_port:
+                self.ee_port_combo.setCurrentText(self.last_ee_connected_port)
 
     ##### WINDOW CLOSE HANDLER #####
     def closeEvent(self, event):
