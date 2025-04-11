@@ -144,14 +144,14 @@ class InterfaceLite(QMainWindow):
         gantry_layout.addWidget(self.connection_status, 1, 0, 1, 3) 
 
         self.gantry_port_combo.currentTextChanged.connect(self.handle_gantry_port_change)
-
+        
         # Add sliders and LCD displays for three steppers
         self.gantry_sliders = []
         self.gantry_lcds = []
         labels = ["Gantry X", "Gantry Y", "Gantry Z"]
 
         for i in range(3):
-            row = i + 2
+            row = i + 2  # Keep original row numbering
             
             # Label
             label = QLabel(labels[i])
@@ -181,10 +181,10 @@ class InterfaceLite(QMainWindow):
             gantry_layout.addWidget(slider, row, 1)
             gantry_layout.addWidget(lcd, row, 2)
         
-        # Homing button
+        # Homing button at bottom (row 5, after X/Y/Z at rows 2-4)
         self.gantry_home_btn = QPushButton("Home Gantry")
         self.gantry_home_btn.clicked.connect(self.gantry.home)
-        gantry_layout.addWidget(self.gantry_home_btn, 4, 0, 1, 3)
+        gantry_layout.addWidget(self.gantry_home_btn, 5, 0, 1, 3)  # Span all columns
 
         gantry_layout.setColumnStretch(0, 0)
         gantry_layout.setColumnStretch(1, 1)
