@@ -13,7 +13,7 @@ from PySide6.QtGui import QImage, QPixmap, QGuiApplication, QFont, QDoubleValida
 import cv2
 import numpy as np
 from ColorMask import ColorMask
-from utils import Gantry, Camera
+from utils import Gantry, Camera, EndEffector
 
 
 
