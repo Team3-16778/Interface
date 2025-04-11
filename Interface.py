@@ -8,14 +8,12 @@ from PySide6.QtWidgets import (
     QApplication, QMainWindow, QWidget, QLabel, QPushButton, QSlider, QVBoxLayout,
     QHBoxLayout, QGroupBox, QGridLayout, QComboBox, QLCDNumber, QSizePolicy, QLineEdit
 )
-from PySide6.QtCore import Qt, QTimer, QThread, Signal
+from PySide6.QtCore import Qt, QTimer, QThread, Signal, QObject, Signal
 from PySide6.QtGui import QImage, QPixmap, QGuiApplication, QFont, QDoubleValidator
 from camera_utils import CSI_Camera, gstreamer_pipeline, colormask, calculate_world_3D
 from ColorMask import ColorMask
 import cv2
 import numpy as np
-
-dir_path = os.path.dirname(os.path.realpath(__file__))
 
 class Camera:
     def __init__(
@@ -24,12 +22,7 @@ class Camera:
         name="Camera",
         use_csi=False,
         sensor_id=0,
-        capture_width=3280,
-        capture_height=2464,
-        display_width=1920,
-        display_height=1080,
-        framerate=21,
-        flip_method=0        
+
     ):
         self.color_mask = ColorMask(camera_name=name)
         self.latest_frame = None
@@ -117,7 +110,7 @@ class Camera:
     def release(self):
         if self.use_csi:
             # If you are using the CSI_Camera code that spawns a thread:
-            self.cap.stop()       # stop the background thread
+            # self.cap.stop()       # stop the background thread
             self.cap.release()    # then release pipeline
         else:
             # If it’s just plain cv2.VideoCapture(...) with a GStreamer pipeline
@@ -257,13 +250,6 @@ class RobotControlWindow(QMainWindow):
 
         # ------------------ Right: Color Mask Initalization ------------------
 
-        # self.color_mask_cam1 = ColorMask()
-        # self.color_mask_cam2 = ColorMask()
-        # self.color_mask_cam1.setWindowTitle("Color Mask 1")
-        # self.color_mask_cam2.setWindowTitle("Color Mask 2")
-        # self.color_mask_cam1.setWindowFlag(Qt.WindowType.WindowStaysOnTopHint)
-        # self.color_mask_cam2.setWindowFlag(Qt.WindowType.WindowStaysOnTopHint)
-
         # ------------------ Right: Camera Toggle and Displays ------------------
 
         # Camera 1 Group
@@ -272,9 +258,7 @@ class RobotControlWindow(QMainWindow):
         cam1_layout = QVBoxLayout()
         cam1_group.setLayout(cam1_layout)
         self.cam_label1 = QLabel()
-        # self.cam_label1.setFixedSize(800, 600)
         self.cam_label1.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Expanding)
-
         self.cam_label1.setStyleSheet("background-color: #000;")
         cam1_layout.addWidget(self.cam_label1)
         right_layout.addWidget(cam1_group)
@@ -285,9 +269,7 @@ class RobotControlWindow(QMainWindow):
         cam2_layout = QVBoxLayout()
         cam2_group.setLayout(cam2_layout)
         self.cam_label2 = QLabel()
-        # self.cam_label2.setFixedSize(800, 600)
         self.cam_label2.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Expanding)
-
         self.cam_label2.setStyleSheet("background-color: #000;")
         cam2_layout.addWidget(self.cam_label2)
         right_layout.addWidget(cam2_group)
@@ -319,7 +301,6 @@ class RobotControlWindow(QMainWindow):
 
         right_layout.addLayout(camera_controls_layout)
   
-        
         # ------------------ Left Top: Control Panels ------------------
         control_layout = QHBoxLayout()
         left_layout.addLayout(control_layout)
@@ -338,8 +319,8 @@ class RobotControlWindow(QMainWindow):
         self.gantry_refresh_btn = QPushButton("Refresh\nPorts")
         self.gantry_refresh_btn.clicked.connect(self.update_gantry_ports)
         gantry_layout.addWidget(self.gantry_refresh_btn, 0, 2)
-        # GUI control toggle button
-        self.gantry_gui_toggle = QPushButton("Enable GUI Control")
+        # Instead of Enable GUI Control, rename to 'Send Positional Command'
+        self.gantry_gui_toggle = QPushButton("Send Positional Command")
         self.gantry_gui_toggle.setMaximumHeight(50)
         self.gantry_gui_toggle.setCheckable(True)
         self.gantry_gui_toggle.setChecked(False)
@@ -374,13 +355,9 @@ class RobotControlWindow(QMainWindow):
             gantry_layout.addWidget(label, row, 0)
             gantry_layout.addWidget(slider, row, 1)
             gantry_layout.addWidget(lcd, row, 2)
-        # Set the column stretches so that column 1 (slider) expands,
-        # while columns 0 (label) and 2 (LCD) remain fixed.
         gantry_layout.setColumnStretch(0, 0)
         gantry_layout.setColumnStretch(1, 1)
         gantry_layout.setColumnStretch(2, 0)
-
-
 
         control_layout.addWidget(self.gantry_group, alignment=Qt.AlignmentFlag.AlignTop)
         
@@ -398,8 +375,8 @@ class RobotControlWindow(QMainWindow):
         self.endeff_refresh_btn = QPushButton("Refresh\nPorts")
         self.endeff_refresh_btn.clicked.connect(self.update_endeff_ports)
         endeff_layout.addWidget(self.endeff_refresh_btn, 0, 2)
-        # GUI control toggle button
-        self.endeff_gui_toggle = QPushButton("Enable GUI Control")
+        # Instead of 'Enable GUI Control', rename to 'Send Positional Command'
+        self.endeff_gui_toggle = QPushButton("Send Positional Command")
         self.endeff_gui_toggle.setMaximumHeight(50)
         self.endeff_gui_toggle.setCheckable(True)
         self.endeff_gui_toggle.setChecked(False)
@@ -558,7 +535,6 @@ class RobotControlWindow(QMainWindow):
 
         up_row_layout.addWidget(motor_status_group)
         
-        
         # Target Detection Group
         detection_group = QGroupBox("Target Detection")
         detection_group.setFont(font_label)
@@ -571,7 +547,6 @@ class RobotControlWindow(QMainWindow):
         self.detection_btn.clicked.connect(self.start_detection)
         detection_layout.addWidget(self.detection_btn)
 
-        # Camera 1 status: fixed and dynamic labels side by side
         cam1_status_layout = QHBoxLayout()
         cam1_fixed_label = QLabel("Camera 1:")
         self.cam1_detection_status = QLabel("Not Detected")
@@ -579,7 +554,6 @@ class RobotControlWindow(QMainWindow):
         cam1_status_layout.addWidget(self.cam1_detection_status)
         detection_layout.addLayout(cam1_status_layout)
 
-        # Camera 2 status: fixed and dynamic labels side by side
         cam2_status_layout = QHBoxLayout()
         cam2_fixed_label = QLabel("Camera 2:")
         self.cam2_detection_status = QLabel("Not Detected")
@@ -598,8 +572,6 @@ class RobotControlWindow(QMainWindow):
         localization_layout = QVBoxLayout()
         self.localization_group.setLayout(localization_layout)
 
-        # Create two rows for the 2 steps
-        # Row 1: X positioning: A fixed label, a button(start function), and a dynamic label for status.
         positioning_row1_layout = QHBoxLayout()
         positioning_row1_fixed_label = QLabel("X: ")
         positioning_row1_fixed_label.setFixedWidth(40)
@@ -612,7 +584,6 @@ class RobotControlWindow(QMainWindow):
         positioning_row1_layout.addWidget(self.positioning_row1_status)
         localization_layout.addLayout(positioning_row1_layout)
 
-        # Row 2: Y&Z positioning: A fixed label, a button(start function), and a dynamic label for status.
         positioning_row2_layout = QHBoxLayout()
         positioning_row2_fixed_label = QLabel("Y&Z: ")
         positioning_row2_fixed_label.setFixedWidth(40)
@@ -639,8 +610,7 @@ class RobotControlWindow(QMainWindow):
         self.liver_boipsy_btn.clicked.connect(self.start_liver_boipsy)
         liver_boipsy_layout.addWidget(self.liver_boipsy_btn)
 
-        # Create four rows for the 4 steps; each row contains a fixed label and a dynamic label.
-        self.liver_status_labels = []  # Store only the dynamic part for updating
+        self.liver_status_labels = []
         for step in range(1, 5):
             step_layout = QHBoxLayout()
             fixed_label = QLabel(f"Step {step}:")
@@ -655,26 +625,14 @@ class RobotControlWindow(QMainWindow):
         button_layout.addLayout(up_row_layout)
         button_layout.addLayout(down_row_layout)
         
-        ## ------------------ Timer, Camera, Arduino and flags Initialization ------------------
         self.timer = QTimer()
         self.timer.timeout.connect(self.update_camera_views)
         self.cameras_active = False
         
-        # # Initialize 2 WebCam cameras (using OpenCV for demonstration)
-
-        # self.cam1 = Camera(0, "Camera 1", use_csi=False, sensor_id=0)
-        # self.cam2 = Camera(1, "Camera 2", use_csi=False, sensor_id=1)
-
-        # Initialize 2 CSI cameras
         self.cam1 = Camera(0, "Camera 1", use_csi=True, sensor_id=0)
         self.cam2 = Camera(1, "Camera 2", use_csi=True, sensor_id=1)
 
-        self.cam1.get_internal_parameters("camera1_calibration_data.npz")
-        self.cam2.get_internal_parameters("camera2_calibration_data.npz")
-        self.cam2.get_external_parameters("cam2_external_parameters_2.npz")
-        
-        # Initialize 2 Arduinos
-        # arduino1 is for gantry, arduino2 is for endeff
+
         self.arduino1 = None
         self.arduino1_rate = 115200
         self.serial_thread1 = None
@@ -683,11 +641,9 @@ class RobotControlWindow(QMainWindow):
         self.serial_thread2 = None
         self.sender_threads = []
 
-        # GUI control enable flags
         self.gantry_gui_enabled = False
         self.endeff_gui_enabled = False
-
-        # colormask flags for 2 cameras
+        
         self.colormask_cam1 = False
         self.target_finded_cam1 = False
         self.colormask_cam2 = False
@@ -711,8 +667,6 @@ class RobotControlWindow(QMainWindow):
             self.cam1.release()
             self.cam2.release()
 
-            time.sleep(1)
-            
     def update_camera_views(self):
         if self.cameras_active:
             ret1, frame1 = self.cam1.read_frame()
@@ -738,7 +692,6 @@ class RobotControlWindow(QMainWindow):
                     image2 = QImage(frame2.data, w, h, bytes_per_line, QImage.Format.Format_RGB888)
                     self.cam_label2.setPixmap(QPixmap.fromImage(image2).scaled(self.cam_label2.size(), Qt.AspectRatioMode.KeepAspectRatio))
 
-            # Camera 1 status
             if self.cam1.target_found and self.cam1.last_target_center:
                 c1x, c1y = self.cam1.last_target_center
                 dis1_x, dis1_y = self.cam1.calculate_center_distance(c1x, c1y)
@@ -748,7 +701,6 @@ class RobotControlWindow(QMainWindow):
                 self.cam1_detection_status.setText("No Target")
                 self.cam1_detection_status.setStyleSheet("color: red;")
 
-            # Camera 2 status
             if self.cam2.target_found and self.cam2.last_target_center:
                 c2x, c2y = self.cam2.last_target_center
                 target_3D = self.cam2.calculate_world_3D(c2x, c2y)
@@ -758,11 +710,8 @@ class RobotControlWindow(QMainWindow):
                 self.cam2_detection_status.setText("No Target")
                 self.cam2_detection_status.setStyleSheet("color: red;")
 
-
-
     def parse_gantry_position(line):
-        # Match the string format "Current Position: X10.00 Y20.00 Z30.00"
-        m = re.search(r"^Current Position:\s*X([\d\.\-]+)\s+Y([\d\.\-]+)\s+Z([\d\.\-]+)", line)
+        m = re.search(r"^Current Position:\s*X([\d\.-]+)\s+Y([\d\.-]+)\s+Z([\d\.-]+)", line)
         if m:
             posX = float(m.group(1))
             posY = float(m.group(2))
@@ -772,7 +721,6 @@ class RobotControlWindow(QMainWindow):
 
     def handle_arduino1_data(self, data):
         print("Arduino 1:", data)
-        # read and update the gantry position
         pos = self.parse_gantry_position(data)
         if pos is not None:
             self.gantry_X, self.gantry_Y, self.gantry_Z = pos
@@ -780,66 +728,61 @@ class RobotControlWindow(QMainWindow):
             self.gantry_pos_y.setText(f"{self.gantry_Y:.2f}")
             self.gantry_pos_z.setText(f"{self.gantry_Z:.2f}")
 
-    
     def handle_arduino2_data(self, data):
         print("Arduino 2:", data)
-        # update
 
     def send_command_in_thread_once(self, arduino, command):
         sender = SerialSenderThread(arduino, command)
-        # when the thread finishes, remove it from the list
         sender.finished.connect(lambda: self.sender_threads.remove(sender))
         self.sender_threads.append(sender)
         sender.start()
-
 
     def update_gantry(self, idx, value):
         if self.gantry_gui_enabled:
             print(f"Gantry Stepper {idx+1} set to {value}")
         else:
-            print(f"Gantry GUI control disabled; ignoring change for Stepper {idx+1}")
-    
+            print(f"GUI disabled; ignoring Stepper {idx+1}")
+
     def update_endeff(self, component, value):
         if self.endeff_gui_enabled:
             print(f"End-Effector {component} set to {value}")
         else:
-            print(f"End-Effector GUI control disabled; ignoring change for {component}")
-    
+            print(f"GUI disabled; ignoring {component}")
+
     def toggle_gantry_gui(self, checked):
         self.gantry_gui_enabled = checked
         if checked:
-            self.gantry_gui_toggle.setText("Disable GUI Control")
+            self.gantry_gui_toggle.setText("Stop Sending Positional Command")
             if self.gantry_port_combo.currentText() != "Waiting":
                 self.arduino1 = serial.Serial(self.gantry_port_combo.currentText(), self.arduino1_rate)
-                print("Gantry port opened at: ", self.gantry_port_combo.currentText())
+                print("Gantry port opened at:", self.gantry_port_combo.currentText())
                 self.serial_thread1 = SerialReaderThread(self.arduino1)
                 self.serial_thread1.data_received.connect(self.handle_arduino1_data)
                 self.serial_thread1.start()
         else:
-            self.gantry_gui_toggle.setText("Enable GUI Control")
+            self.gantry_gui_toggle.setText("Send Positional Command")
             if self.arduino1 is not None:
                 print("Gantry port closed")
                 self.serial_thread1.stop()
                 self.arduino1.close()
 
-    
     def toggle_endeff_gui(self, checked):
         self.endeff_gui_enabled = checked
         if checked:
-            self.endeff_gui_toggle.setText("Disable GUI Control")
+            self.endeff_gui_toggle.setText("Stop Sending Positional Command")
             if self.endeff_port_combo.currentText() != "Waiting":
                 self.arduino2 = serial.Serial(self.endeff_port_combo.currentText(), self.arduino2_rate)
-                print("End-Effector port opened at: ", self.endeff_port_combo.currentText())
+                print("End-Effector port opened at:", self.endeff_port_combo.currentText())
                 self.serial_thread2 = SerialReaderThread(self.arduino2)
                 self.serial_thread2.data_received.connect(self.handle_arduino2_data)
                 self.serial_thread2.start()
         else:
-            self.endeff_gui_toggle.setText("Enable GUI Control")
+            self.endeff_gui_toggle.setText("Send Positional Command")
             if self.arduino2 is not None:
                 print("End-Effector port closed")
                 self.serial_thread2.stop()
                 self.arduino2.close()
-    
+
     def update_gantry_ports(self):
         ports = list_ports.comports()
         self.gantry_port_combo.clear()
@@ -848,7 +791,7 @@ class RobotControlWindow(QMainWindow):
             port_names = ["No ports available"]
         self.gantry_port_combo.addItems(port_names)
         print("Gantry ports updated:", port_names)
-    
+
     def update_endeff_ports(self):
         ports = list_ports.comports()
         self.endeff_port_combo.clear()
@@ -857,12 +800,12 @@ class RobotControlWindow(QMainWindow):
             port_names = ["No ports available"]
         self.endeff_port_combo.addItems(port_names)
         print("End-Effector ports updated:", port_names)
- 
+
     def motor_home(self):
         print("Executing motor homing")
         self.motor_status.setText("Homing...")
         QTimer.singleShot(2000, lambda: self.motor_status.setText("Homed"))
-    
+
     def motor_move(self):
         self.motor_status.setText("Moving...")
         self.gantry_pos_des_x = float(self.gantry_move_x.text())
@@ -871,20 +814,19 @@ class RobotControlWindow(QMainWindow):
         self.endeff_pos_des_servo = float(self.ee_move_servo.text())
         self.endeff_pos_des_linear = float(self.ee_move_linear.text())
 
-        print("Executing motor movement to: X{} Y{} Z{} Servo{} Linear{}".format(self.gantry_pos_des_x, self.gantry_pos_des_y, self.gantry_pos_des_z, self.endeff_pos_des_servo, self.endeff_pos_des_linear))
+        print(f"Moving to: X{self.gantry_pos_des_x} Y{self.gantry_pos_des_y} Z{self.gantry_pos_des_z} Servo{self.endeff_pos_des_servo} Linear{self.endeff_pos_des_linear}")
         if self.arduino1 is not None:
-            command_1 = "Gantry move to: X{} Y{} Z{}".format(self.gantry_pos_des_x, self.gantry_pos_des_y, self.gantry_pos_des_z)
+            command_1 = f"Gantry move to: X{self.gantry_pos_des_x} Y{self.gantry_pos_des_y} Z{self.gantry_pos_des_z}"
             self.send_command_in_thread_once(self.arduino1, command_1)
         if self.arduino2 is not None:
-            command_2 = "Endeffector move to: Servo{} Linear{}".format(self.endeff_pos_des_servo, self.endeff_pos_des_linear)
+            command_2 = f"Endeffector move to: Servo{self.endeff_pos_des_servo} Linear{self.endeff_pos_des_linear}"
             self.send_command_in_thread_once(self.arduino2, command_2)
         QTimer.singleShot(2000, lambda: self.motor_status.setText("Moved"))
-    
+
     def start_detection(self):
-        print("Starting target detection process")
+        print("Starting target detection")
         self.colormask_cam1 = True
         self.colormask_cam2 = True
-
         def update_detection_status():
             if self.cam1.target_found:
                 self.cam1_detection_status.setText("Target Detected")
@@ -899,27 +841,25 @@ class RobotControlWindow(QMainWindow):
             else:
                 self.cam2_detection_status.setText("No Target")
                 self.cam2_detection_status.setStyleSheet("color: red;")
-
         QTimer.singleShot(200, update_detection_status)
 
-
     def positioning_X(self):
-        print("Starting X positioning process")
-        self.positioning_row1_status.setText(" Pixel Error: {}\n Gantry Position: {}".format(0, 0))
+        print("Positioning X")
+        self.positioning_row1_status.setText("Pixel Error: 0\nGantry Position: 0")
 
     def positioning_YZ(self):
-        print("Starting YZ positioning process")
-        self.positioning_row2_status.setText(" Target Y: {}\n Target Z: {}\n Ribcage Y: {}\n Ribcage Z: {}".format(0, 0, 0, 0))
+        print("Positioning YZ")
+        self.positioning_row2_status.setText("Target Y: 0\nTarget Z: 0\nRibcage Y: 0\nRibcage Z: 0")
 
     def start_liver_boipsy(self):
-        print("Starting Liver Boipsy process")
+        print("Starting Liver Boipsy")
         for lbl in self.liver_status_labels:
             lbl.setText("Wait")
         QTimer.singleShot(1000, lambda: (self.liver_status_labels[0].setText("Pass"), self.liver_status_labels[0].setStyleSheet("color: green;")))
         QTimer.singleShot(2000, lambda: (self.liver_status_labels[1].setText("Pass"), self.liver_status_labels[1].setStyleSheet("color: green;")))
         QTimer.singleShot(3000, lambda: (self.liver_status_labels[2].setText("Pass"), self.liver_status_labels[2].setStyleSheet("color: green;")))
         QTimer.singleShot(4000, lambda: (self.liver_status_labels[3].setText("Pass"), self.liver_status_labels[3].setStyleSheet("color: green;")))
-    
+
     def closeEvent(self, event):
         self.cam1.release()
         self.cam2.release()
@@ -932,7 +872,7 @@ class RobotControlWindow(QMainWindow):
         event.accept()
 
 class SerialReaderThread(QThread):
-    data_received = Signal(str)  # define the signal
+    data_received = Signal(str)
     def __init__(self, serial_port):
         super().__init__()
         self.serial_port = serial_port
@@ -942,17 +882,16 @@ class SerialReaderThread(QThread):
         while self.running:
             if self.serial_port.in_waiting:
                 try:
-                    # read a line from the serial port
                     data = self.serial_port.readline().decode('utf-8').strip()
                     if data:
                         self.data_received.emit(data)
                 except Exception as e:
                     print("Error reading serial:", e)
-            self.msleep(1)  # delay, reduces CPU usage
+            self.msleep(1)
 
     def stop(self):
         self.running = False
-        self.wait()  # Wait for the thread to finish
+        self.wait()
 
 class SerialSenderThread(QThread):
     def __init__(self, arduino, command):
@@ -961,11 +900,8 @@ class SerialSenderThread(QThread):
         self.command = command
 
     def run(self):
-        # write the command to the serial port
         if self.arduino.is_open:
             self.arduino.write((self.command + "\n").encode("utf-8"))
-
-
 
 if __name__ == "__main__":
     app = QApplication(sys.argv)
