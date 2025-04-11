@@ -13,7 +13,7 @@ from PySide6.QtGui import QImage, QPixmap, QGuiApplication, QFont, QDoubleValida
 import cv2
 import numpy as np
 from ColorMask import ColorMask
-from utils import Gantry, Camera, ConnectionWorker, EndEffector
+from utils import Gantry, EndEffector, Camera, CameraHandler, ConnectionWorker
 
 
 
@@ -95,26 +95,46 @@ class InterfaceLite(QMainWindow):
         self.cam_toggle_btn.setFont(font_button_1)
         self.cam_toggle_btn.setMaximumHeight(50)
         self.cam_toggle_btn.setStyleSheet("QPushButton { font-size: 16px; font-weight: bold; }")
-        # self.cam_toggle_btn.toggled.connect(self.toggle_cameras) <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
         camera_controls_layout.addWidget(self.cam_toggle_btn, stretch=2)
 
         self.cam1_tune_btn = QPushButton("Color Mask 1")
         self.cam1_tune_btn.setMaximumHeight(50)
         self.cam1_tune_btn.setFont(font_button_1)
         self.cam1_tune_btn.setStyleSheet("QPushButton { font-size: 16px; font-weight: bold; }")
-        # self.cam1_tune_btn.clicked.connect(lambda: self.cam1.open_tuner()) <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
         camera_controls_layout.addWidget(self.cam1_tune_btn, stretch=1)
 
         self.cam2_tune_btn = QPushButton("Color Mask 2")
         self.cam2_tune_btn.setMaximumHeight(50)
         self.cam2_tune_btn.setFont(font_button_1)
         self.cam2_tune_btn.setStyleSheet("QPushButton { font-size: 16px; font-weight: bold; }")
-        # self.cam2_tune_btn.clicked.connect(lambda: self.cam2.open_tuner()) <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
         camera_controls_layout.addWidget(self.cam2_tune_btn, stretch=1)
 
         right_layout.addLayout(camera_controls_layout)
 
-                # ------------------ Left Top: Control Panels ------------------
+        # Camera setup
+        self.camera1 = CameraHandler(0, "Camera 1", use_csi=False, sensor_id=0)
+        self.camera2 = CameraHandler(1, "Camera 2", use_csi=False, sensor_id=1)
+        
+        # Connect camera signals
+        self.camera1.frame_ready.connect(self.update_camera1_view)
+        self.camera2.frame_ready.connect(self.update_camera2_view)
+        self.camera1.detection_update.connect(self.update_detection_status)
+        self.camera2.detection_update.connect(self.update_detection_status)
+        
+        # Connect camera buttons
+        self.cam_toggle_btn.toggled.connect(self.toggle_cameras)
+        self.cam1_tune_btn.clicked.connect(self.camera1.open_tuner)
+        self.cam2_tune_btn.clicked.connect(self.camera2.open_tuner)
+        
+        # Camera update timer
+        self.camera_timer = QTimer()
+        self.camera_timer.timeout.connect(self.update_camera_frames)
+        
+        # Detection state
+        self.detection_active = False
+
+
+        # ------------------ Left Top: Control Panels ------------------
         control_layout = QHBoxLayout()
         left_layout.addLayout(control_layout)
 
@@ -272,7 +292,72 @@ class InterfaceLite(QMainWindow):
         self.update_ee_ports()
 
 
-       
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+    ###### CAMERA GUI CONTROLS #####
+
+    def toggle_cameras(self, checked):
+        if checked:
+            self.camera1.start()
+            self.camera2.start()
+            self.cam_toggle_btn.setText("Close Cameras")
+            self.camera_timer.start(30)  # ~30 FPS
+        else:
+            self.camera_timer.stop()
+            self.camera1.stop()
+            self.camera2.stop()
+            self.cam_toggle_btn.setText("Open Cameras")
+            self.cam_label1.clear()
+            self.cam_label2.clear()
+
+    def update_camera_frames(self):
+        self.camera1.update_frame()
+        self.camera2.update_frame()
+
+    def update_camera1_view(self, image):
+        self.cam_label1.setPixmap(QPixmap.fromImage(image).scaled(
+            self.cam_label1.size(), Qt.AspectRatioMode.KeepAspectRatio))
+
+    def update_camera2_view(self, image):
+        self.cam_label2.setPixmap(QPixmap.fromImage(image).scaled(
+            self.cam_label2.size(), Qt.AspectRatioMode.KeepAspectRatio))
+
+    def update_detection_status(self, cam_name, detected, center):
+        if cam_name == "Camera 1":
+            label = self.cam1_detection_status
+        else:
+            label = self.cam2_detection_status
+            
+        if detected:
+            cx, cy = center
+            label.setText(f"Target at ({cx}, {cy})")
+            label.setStyleSheet("color: green;")
+        else:
+            label.setText("No Target")
+            label.setStyleSheet("color: red;")
+
+    def start_detection(self):
+        self.detection_active = not self.detection_active
+        self.camera1.toggle_detection(self.detection_active)
+        self.camera2.toggle_detection(self.detection_active)
+        
+        if self.detection_active:
+            self.detection_btn.setText("Stop Target Detection")
+        else:
+            self.detection_btn.setText("Start Target Detection")
 
 
     ##### GANTRY GUI CONTROLS #####

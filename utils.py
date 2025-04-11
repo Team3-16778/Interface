@@ -101,6 +101,54 @@ class Camera:
             # If it’s just plain cv2.VideoCapture(...) with a GStreamer pipeline
             self.cap.release()
 
+class CameraHandler(QObject):
+    frame_ready = Signal(QImage)
+    detection_update = Signal(str, bool, tuple)
+
+    def __init__(self, cam_index=0, name="Camera", use_csi=False, sensor_id=0):
+        super().__init__()
+        self.camera = Camera(cam_index, name, use_csi, sensor_id)
+        self.active = False
+        self.detection_active = False
+        self.name = name
+
+    def start(self):
+        self.camera.start_cap()
+        self.active = True
+
+    def stop(self):
+        self.active = False
+        self.camera.release()
+
+    def update_frame(self):
+        if not self.active:
+            return
+
+        ret, frame = self.camera.read_frame()
+        if not ret:
+            return
+
+        if self.detection_active:
+            self.camera.detect_target()
+            if self.camera.target_found and self.camera.last_target_center:
+                center = self.camera.last_target_center
+                self.detection_update.emit(self.name, True, center)
+            else:
+                self.detection_update.emit(self.name, False, None)
+
+        display_frame = self.camera.get_display_frame(self.detection_active)
+        if display_frame is not None:
+            h, w, ch = display_frame.shape
+            bytes_per_line = ch * w
+            image = QImage(display_frame.data, w, h, bytes_per_line, QImage.Format.Format_RGB888)
+            self.frame_ready.emit(image)
+
+    def toggle_detection(self, active):
+        self.detection_active = active
+
+    def open_tuner(self):
+        self.camera.open_tuner()
+
 class Gantry(QObject):
     position_updated = Signal(float, float, float)  # Current position
     target_updated = Signal(float, float, float)    # Target position
