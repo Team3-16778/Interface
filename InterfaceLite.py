@@ -7,7 +7,7 @@ from PySide6.QtWidgets import (
     QApplication, QMainWindow, QWidget, QLabel, QPushButton, QSlider, QVBoxLayout,
     QHBoxLayout, QGroupBox, QGridLayout, QComboBox, QLCDNumber, QSizePolicy, QLineEdit
 )
-from PySide6.QtCore import Qt, QTimer, QThread, Signal, QObject
+from PySide6.QtCore import Qt, QTimer, QThread, Signal, QObject, Slot
 from PySide6.QtGui import QImage, QPixmap, QGuiApplication, QFont, QDoubleValidator
 
 import cv2
@@ -425,12 +425,14 @@ class InterfaceLite(QMainWindow):
         # Send move command immediately
         self.gantry.move_to(*current_target)
 
+    @Slot(object, object, object)
     def update_gantry_position_display(self, x, y, z):
         """Update UI with current gantry position"""
         self.gantry_pos_x.setText(f"{x:.2f}")
         self.gantry_pos_y.setText(f"{y:.2f}")
         self.gantry_pos_z.setText(f"{z:.2f}")
 
+    @Slot(object, object, object)
     def update_gantry_target_display(self, x, y, z):
         """Update UI with target gantry position"""
         # Update sliders without triggering valueChanged signals
