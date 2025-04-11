@@ -141,13 +141,7 @@ class InterfaceLite(QMainWindow):
         self.gantry_refresh_btn.clicked.connect(self.update_gantry_ports)  # Fixed connection - no parentheses
         gantry_layout.addWidget(self.gantry_refresh_btn, 0, 2)
 
-        # Positional command toggle
-        self.gantry_gui_toggle = QPushButton("Send Positional Command")
-        self.gantry_gui_toggle.setMaximumHeight(50)
-        self.gantry_gui_toggle.setCheckable(True)
-        self.gantry_gui_toggle.setChecked(False)
-        self.gantry_gui_toggle.toggled.connect(self.toggle_gantry_control)  # Fixed connection - no parentheses
-        gantry_layout.addWidget(self.gantry_gui_toggle, 1, 0, 1, 3)
+        self.gantry_port_combo.currentTextChanged.connect(self.handle_gantry_port_change)
 
         # Add sliders and LCD displays for three steppers
         self.gantry_sliders = []
@@ -489,7 +483,7 @@ class InterfaceLite(QMainWindow):
 
     def on_gantry_slider_change(self, axis, value):
         """Handle gantry slider changes"""
-        if not self.gantry_gui_enabled:
+        if not self.gantry.is_connected:
             return
         
         # Get current target from controller
@@ -501,9 +495,8 @@ class InterfaceLite(QMainWindow):
         # Update through controller (will emit target_updated signal)
         self.gantry.target_position = tuple(current_target)
         
-        # If connected and enabled, send move command immediately
-        if self.gantry.is_connected and self.gantry_gui_enabled:
-            self.gantry.move_to(*current_target)
+        # Send move command immediately
+        self.gantry.move_to(*current_target)
 
     def update_gantry_position_display(self, x, y, z):
         """Update UI with current gantry position"""
@@ -522,6 +515,15 @@ class InterfaceLite(QMainWindow):
         # Update LCD displays
         for i, lcd in enumerate(self.gantry_lcds):
             lcd.display(int([x, y, z][i]))
+
+    def handle_gantry_port_change(self, port):
+        """Handle when the gantry port selection changes"""
+        if port not in ["Waiting", "No ports available"]:
+            if not self.gantry.connect(port):
+                print(f"Failed to connect to {port}")
+                # Optionally show a message to the user
+        else:
+            self.gantry.disconnect()
         
 
 if __name__ == "__main__":

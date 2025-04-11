@@ -140,8 +140,12 @@ class Gantry(QObject):
     def connect(self, port, baudrate=9600, timeout=2):
         """Connect to the specified serial port"""
         try:
-            if self.ser is not None and self.ser.is_open:
-                self.ser.close()
+            # Disconnect first if already connected
+            self.disconnect()
+            
+            # Skip if port is invalid
+            if port in ["Waiting", "No ports available"]:
+                return False
                 
             self.ser = serial.Serial(port, baudrate, timeout=timeout)
             time.sleep(2)  # Wait for Arduino to initialize
@@ -149,6 +153,10 @@ class Gantry(QObject):
             self.baudrate = baudrate
             self.timeout = timeout
             self.is_connected = True
+            
+            # Optional: Request current position on connect
+            self.read_position()
+            
             return True
         except Exception as e:
             print(f"Failed to connect to gantry: {e}")
