@@ -83,10 +83,20 @@ class Camera:
             
         display_frame = self.latest_frame.copy()
         if draw_bbox and self.target_found and self.last_target_center:
-            x, y = self.last_target_center
-            cv2.rectangle(display_frame, 
-                         (x-10, y-10), (x+10, y+10), 
-                         (0, 255, 0), 2)
+            # Get the bounding box dimensions from color mask
+            mask, _, _ = self.color_mask.apply(self.latest_frame)
+            contours, _ = cv2.findContours(mask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+            if contours:
+                largest = max(contours, key=cv2.contourArea)
+                x, y, w, h = cv2.boundingRect(largest)
+                cx, cy = x + w // 2, y + h // 2
+                
+                # Draw the bounding box and center point (same as ColorMask)
+                cv2.rectangle(display_frame, (x, y), (x + w, y + h), (0, 255, 0), 2)
+                cv2.circle(display_frame, (cx, cy), 5, (255, 255, 0), -1)
+                
+                # Update the last target center
+                self.last_target_center = (cx, cy)
 
         return cv2.cvtColor(display_frame, cv2.COLOR_RGB2BGR)
 
@@ -117,7 +127,7 @@ class CameraHandler(QObject):
         super().__init__()
         self.camera = Camera(cam_index, name, use_csi, sensor_id)
         self.active = False
-        self.detection_active = False
+        self.detection_active = True
         self.name = name
         self.frame_counter = 0
         self.detection_interval = 3  # Process every 3rd frame for detection

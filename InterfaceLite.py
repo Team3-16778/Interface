@@ -33,6 +33,9 @@ class InterfaceLite(QMainWindow):
         self.theta = 0
         self.delta = 0
 
+        self.cam1_detection_status = None
+        self.cam2_detection_status = None
+
         ## ------------------ Window Setup ------------------
         self.setWindowTitle("Discount daVinci Control Interface")
         # Set window size to maximum available screen geometry
@@ -223,9 +226,21 @@ class InterfaceLite(QMainWindow):
         # Connect camera signals
         self.camera1.frame_ready.connect(self.update_camera1_view)
         self.camera2.frame_ready.connect(self.update_camera2_view)
+
+        # Detection status labels
         self.camera1.detection_update.connect(self.update_detection_status)
         self.camera2.detection_update.connect(self.update_detection_status)
         
+        # For Camera 1 group
+        self.cam1_detection_status = QLabel("No Target")
+        self.cam1_detection_status.setStyleSheet("color: red; font-weight: bold;")
+        cam1_layout.addWidget(self.cam1_detection_status)
+
+        # For Camera 2 group
+        self.cam2_detection_status = QLabel("No Target")
+        self.cam2_detection_status.setStyleSheet("color: red; font-weight: bold;")
+        cam2_layout.addWidget(self.cam2_detection_status)
+
         # Connect camera buttons
         self.cam_toggle_btn.toggled.connect(self.toggle_cameras)
         self.cam1_tune_btn.clicked.connect(self.camera1.open_tuner)
