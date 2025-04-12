@@ -212,8 +212,8 @@ class InterfaceLite(QMainWindow):
         right_layout.addLayout(camera_controls_layout)
 
         # Camera setup
-        self.camera1 = CameraHandler(0, "Camera 1", use_csi=False, sensor_id=0)
-        self.camera2 = CameraHandler(1, "Camera 2", use_csi=False, sensor_id=1)
+        self.camera1 = CameraHandler(0, "Camera 1", use_csi=True, sensor_id=0)
+        self.camera2 = CameraHandler(1, "Camera 2", use_csi=True, sensor_id=1)
         
         # Connect camera signals
         self.camera1.frame_ready.connect(self.update_camera1_view)
