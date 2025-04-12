@@ -13,23 +13,27 @@ from PySide6.QtGui import QImage, QPixmap, QGuiApplication, QFont, QDoubleValida
 import cv2
 import numpy as np
 from ColorMask import ColorMask
-from utils import Gantry, EndEffector, Camera, CameraHandler
+from utils import Gantry, EndEffector, Camera, CameraHandler, HardwareManager
 
 
 
 class InterfaceLite(QMainWindow):
-    def __init__(self):
+    def __init__(self, hardware_manager=None):
         super().__init__()
+
+        self.hw = hardware_manager
+        self.gantry = self.hw.gantry if hardware_manager else None
+        self.end_effector = self.hw.end_effector if hardware_manager else None  
+        self.camera1 = self.hw.camera1 if hardware_manager else None
+        self.camera2 = self.hw.camera2 if hardware_manager else None
 
 
         ## ------------------ Inner Parameters ------------------
 
-        self.gantry = None
         self.gantry_x = 50
         self.gantry_y = 50
         self.gantry_z = 50
 
-        self.end_effector = None
         self.theta = 0
         self.delta = 0
 
@@ -214,15 +218,6 @@ class InterfaceLite(QMainWindow):
 
         right_layout.addLayout(camera_controls_layout)
 
-        # Camera setup
-        import platform
-        is_mac = platform.system() == "Darwin"
-        self.camera1 = CameraHandler(0, "Camera 1", use_csi=not is_mac, sensor_id=0)
-        self.camera2 = CameraHandler(1, "Camera 2", use_csi=not is_mac, sensor_id=1)
-
-        # self.camera1 = CameraHandler(0, "Camera 1", use_csi=True, sensor_id=0)
-        # self.camera2 = CameraHandler(1, "Camera 2", use_csi=True, sensor_id=1)
-        
         # Connect camera signals
         self.camera1.frame_ready.connect(self.update_camera1_view)
         self.camera2.frame_ready.connect(self.update_camera2_view)
@@ -321,7 +316,7 @@ class InterfaceLite(QMainWindow):
 
         if not self.gantry:
             # If we don't have a Gantry yet, create one
-            self.gantry = Gantry(port=port)
+            self.gantry = Gantry(port=port) ## <<< This is a child of the HardwareManager
         else:
             # Otherwise, update the existing Gantry's port
             self.gantry.set_port(port)
@@ -411,6 +406,10 @@ class InterfaceLite(QMainWindow):
 
 if __name__ == "__main__":
     app = QApplication(sys.argv)
-    window = InterfaceLite()
+
+    # Initialize the hardware manager
+    hardware_manager = HardwareManager()
+    
+    window = InterfaceLite(hardware_manager)
     window.show()
     sys.exit(app.exec())

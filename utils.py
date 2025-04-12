@@ -7,6 +7,8 @@ import serial
 from serial.tools import list_ports
 import cv2
 import numpy as np
+import platform
+
 
 from abc import ABC, abstractmethod
 
@@ -290,3 +292,48 @@ class EndEffector(AbstractSerialDevice):
                 t, d = map(float, vals)
                 return (t, d)
         return None
+class HardwareManager:
+    def __init__(self):
+        self.camera1 = None
+        self.camera2 = None
+        self.gantry = None
+        self.end_effector = None
+
+        self.connect_cameras()
+        self.connect_gantry()
+        self.connect_effector()
+        
+    def connect_gantry(self):
+        """Initialize gantry with basic error handling"""
+        try:
+            self.gantry = Gantry()
+        except Exception as e:
+            print(f"Gantry init failed: {e}")
+        
+    def connect_effector(self):
+        """Initialize end effector with basic error handling"""
+        try:
+            self.effector = EndEffector()
+        except Exception as e:
+            print(f"End Effector init failed: {e}")
+
+
+    def connect_cameras(self):
+        """Initialize cameras with basic error handling"""
+        try:
+            is_mac = platform.system() == "Darwin"
+            self.camera1 = CameraHandler(0, "Camera 1", use_csi=not is_mac, sensor_id=0)
+            self.camera2 = CameraHandler(1, "Camera 2", use_csi=not is_mac, sensor_id=1)
+            return True
+        except Exception as e:
+            print(f"Camera init failed: {e}")
+            return False
+    
+    def close_all(self):
+        """Cleanup all connections"""
+        if self.gantry:
+            self.gantry.stop()
+        if self.camera1:
+            self.camera1.stop()
+        if self.camera2:
+            self.camera2.stop()
