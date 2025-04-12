@@ -127,6 +127,10 @@ class CameraHandler(QObject):
     def start(self):
         self.camera.start_cap()
         self.active = True
+        
+    def stop(self):
+        self.active = False
+        self.camera.release()
 
     def update_frame(self):
         if not self.active:
