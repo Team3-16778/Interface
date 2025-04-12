@@ -1,8 +1,15 @@
 import sys
 import re
+import sys
+import re
+import time
 import serial
 from serial.tools import list_ports
-import time
+import cv2
+import numpy as np
+
+from abc import ABC, abstractmethod
+
 from PySide6.QtWidgets import (
     QApplication, QMainWindow, QWidget, QLabel, QPushButton, QSlider, QVBoxLayout,
     QHBoxLayout, QGroupBox, QGridLayout, QComboBox, QLCDNumber, QSizePolicy, QLineEdit
@@ -10,8 +17,6 @@ from PySide6.QtWidgets import (
 from PySide6.QtCore import Qt, QTimer, QThread, Signal, QObject
 from PySide6.QtGui import QImage, QPixmap, QGuiApplication, QFont, QDoubleValidator
 
-import cv2
-import numpy as np
 from ColorMask import ColorMask
 
 class Camera:
@@ -149,10 +154,8 @@ class CameraHandler(QObject):
     def open_tuner(self):
         self.camera.open_tuner()
 
-class Gantry:
+class AbstractSerialDevice(ABC):
     def __init__(self, port="/dev/ttyACM0", baud=9600, timeout=1.0):
-        print(f"Initializing Gantry on port {port} with baud {baud}")
-        """Initialize the serial connection to the Arduino."""
         self.port = port
         self.baud = baud
         self.timeout = timeout
@@ -160,7 +163,7 @@ class Gantry:
         self._open_serial()
 
     def _open_serial(self):
-        """(Re)open the serial connection with current settings."""
+        """(Re)open the serial connection using current settings."""
         if self.ser and self.ser.is_open:
             self.ser.close()
         self.ser = serial.Serial(
@@ -168,8 +171,7 @@ class Gantry:
             baudrate=self.baud,
             timeout=self.timeout
         )
-        # Give Arduino time to reset and start listening
-        time.sleep(2)
+        time.sleep(2)  # Allow device time to reset/listen
 
     def set_port(self, port, baud=None, timeout=None):
         """Change the port (and optionally baud/timeout) at runtime."""
@@ -180,11 +182,34 @@ class Gantry:
             self.timeout = timeout
         self._open_serial()
 
+    @abstractmethod
+    def goto_position(self, *args):
+        """
+        Move this device to the specified position (args vary by subclass).
+        """
+        pass
+
+    @abstractmethod
+    def stop(self):
+        """
+        Send a 'STOP' or emergency stop command to the device.
+        """
+        pass
+
+class Gantry(AbstractSerialDevice):
+    def __init__(self, port="/dev/ttyACM0", baud=9600, timeout=1.0):
+        super().__init__(port=port, baud=baud, timeout=timeout)
+        print(f"Initialized Gantry on {port} at {baud} baud.")
+
     def goto_position(self, x, y, z):
         """Send GOTO command to move gantry to (x, y, z)."""
         cmd = f"GOTO {x:.2f} {y:.2f} {z:.2f}\n"
         self.ser.write(cmd.encode())
         print(f"SENT: {cmd.strip()}")
+
+    def stop(self):
+        """Send STOP command (emergency stop)."""
+        self.ser.write(b"STOP\n")
 
     def home(self):
         """Send HOME command to home the gantry."""
@@ -204,52 +229,26 @@ class Gantry:
                 return (x, y, z)
         return None
 
-    def stop(self):
-        """Send STOP command (emergency stop)."""
-        self.ser.write(b"STOP\n")
 
-import serial
-import time
-
-class EndEffector:
+class EndEffector(AbstractSerialDevice):
     def __init__(self, port="/dev/ttyACM1", baud=9600, timeout=1.0):
-        print(f"Initializing EndEffector on port {port} with baud {baud}")
-        self.port = port
-        self.baud = baud
-        self.timeout = timeout
-        self.ser = None
-        self._open_serial()
-
-    def _open_serial(self):
-        if self.ser and self.ser.is_open:
-            self.ser.close()
-        self.ser = serial.Serial(
-            port=self.port,
-            baudrate=self.baud,
-            timeout=self.timeout
-        )
-        time.sleep(2)  # Give it time to reset
-
-    def set_port(self, port, baud=None, timeout=None):
-        print(f"[EndEffector] set_port({port})")
-        self.port = port
-        if baud is not None:
-            self.baud = baud
-        if timeout is not None:
-            self.timeout = timeout
-        self._open_serial()
+        super().__init__(port=port, baud=baud, timeout=timeout)
+        print(f"Initialized EndEffector on {port} at {baud} baud.")
 
     def goto_position(self, theta, delta):
-        """
-        Example command to set two angles. Adjust the command string to
-        whatever your Arduino firmware expects, e.g. 'ROTATE theta delta'.
-        """
+        """Example command to rotate by two angles."""
         cmd = f"ROTATE {theta:.2f} {delta:.2f}\n"
         self.ser.write(cmd.encode())
+        print(f"SENT: {cmd.strip()}")
 
-    # Additional commands, if needed
+    def stop(self):
+        self.ser.write(b"STOP\n")
+
     def get_angles(self):
-        """Example command to read angles back from the device."""
+        """
+        Example command to read angles back from the device.
+        Adjust as needed to match your firmware.
+        """
         self.ser.write(b"GETANGLES\n")
         response = self.ser.readline().decode().strip()
         if response.startswith("ANGLES:"):
@@ -258,7 +257,3 @@ class EndEffector:
                 t, d = map(float, vals)
                 return (t, d)
         return None
-
-    def stop(self):
-        """Stop or hold end-effector if needed."""
-        self.ser.write(b"STOP\n")
