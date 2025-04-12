@@ -316,7 +316,8 @@ class InterfaceLite(QMainWindow):
 
         if not self.gantry:
             # If we don't have a Gantry yet, create one
-            self.gantry = Gantry(port=port) ## <<< This is a child of the HardwareManager
+            self.gantry = Gantry(port=port)
+            self.hw.gantry = self.gantry  # Update the hardware manager with the new Gantry, weird workaround
         else:
             # Otherwise, update the existing Gantry's port
             self.gantry.set_port(port)
@@ -382,6 +383,7 @@ class InterfaceLite(QMainWindow):
             return
         if not self.end_effector:
             self.end_effector = EndEffector(port=port)
+            self.hw.end_effector = self.end_effector # same as gantry
         else:
             self.end_effector.set_port(port)
 
