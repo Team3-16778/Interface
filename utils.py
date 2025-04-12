@@ -207,3 +207,58 @@ class Gantry:
     def stop(self):
         """Send STOP command (emergency stop)."""
         self.ser.write(b"STOP\n")
+
+import serial
+import time
+
+class EndEffector:
+    def __init__(self, port="/dev/ttyACM1", baud=9600, timeout=1.0):
+        print(f"Initializing EndEffector on port {port} with baud {baud}")
+        self.port = port
+        self.baud = baud
+        self.timeout = timeout
+        self.ser = None
+        self._open_serial()
+
+    def _open_serial(self):
+        if self.ser and self.ser.is_open:
+            self.ser.close()
+        self.ser = serial.Serial(
+            port=self.port,
+            baudrate=self.baud,
+            timeout=self.timeout
+        )
+        time.sleep(2)  # Give it time to reset
+
+    def set_port(self, port, baud=None, timeout=None):
+        print(f"[EndEffector] set_port({port})")
+        self.port = port
+        if baud is not None:
+            self.baud = baud
+        if timeout is not None:
+            self.timeout = timeout
+        self._open_serial()
+
+    def goto_position(self, theta, delta):
+        """
+        Example command to set two angles. Adjust the command string to
+        whatever your Arduino firmware expects, e.g. 'ROTATE theta delta'.
+        """
+        cmd = f"ROTATE {theta:.2f} {delta:.2f}\n"
+        self.ser.write(cmd.encode())
+
+    # Additional commands, if needed
+    def get_angles(self):
+        """Example command to read angles back from the device."""
+        self.ser.write(b"GETANGLES\n")
+        response = self.ser.readline().decode().strip()
+        if response.startswith("ANGLES:"):
+            vals = response[7:].split()
+            if len(vals) == 2:
+                t, d = map(float, vals)
+                return (t, d)
+        return None
+
+    def stop(self):
+        """Stop or hold end-effector if needed."""
+        self.ser.write(b"STOP\n")

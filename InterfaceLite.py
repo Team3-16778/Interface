@@ -13,7 +13,7 @@ from PySide6.QtGui import QImage, QPixmap, QGuiApplication, QFont, QDoubleValida
 import cv2
 import numpy as np
 from ColorMask import ColorMask
-from utils import Gantry, Camera, CameraHandler
+from utils import Gantry, EndEffector, Camera, CameraHandler
 
 
 
@@ -28,6 +28,10 @@ class InterfaceLite(QMainWindow):
         self.gantry_x = 50
         self.gantry_y = 50
         self.gantry_z = 50
+
+        self.end_effector = None
+        self.theta = 0
+        self.delta = 0
 
         ## ------------------ Window Setup ------------------
         self.setWindowTitle("Discount daVinci Control Interface")
@@ -113,7 +117,51 @@ class InterfaceLite(QMainWindow):
         # Populate port list on startup
         self.update_gantry_ports()
 
-        # ------------------ Right: Color Mask Initalization ------------------
+        # ------------------ End Effector Control Pannel ------------------
+
+        self.effector_group = QGroupBox("End Effector Control")
+        self.effector_group.setFont(font_label)
+        eff_layout = QGridLayout(self.effector_group)
+
+        eff_layout.addWidget(QLabel("USB Port:"), 0, 0)
+        self.effector_port_combo = QComboBox()
+        self.effector_port_combo.addItem("Waiting")
+        eff_layout.addWidget(self.effector_port_combo, 0, 1)
+
+        self.effector_refresh_btn = QPushButton("Refresh\nPorts")
+        self.effector_refresh_btn.clicked.connect(self.update_effector_ports)
+        eff_layout.addWidget(self.effector_refresh_btn, 0, 2)
+        
+        self.effector_command_btn = QPushButton("Send Effector Command")
+        self.effector_command_btn.clicked.connect(self.send_effector_command)
+        eff_layout.addWidget(self.effector_command_btn, 1, 0, 1, 3)
+
+        # Sliders for Theta, Delta
+        eff_labels = ["Theta", "Delta"]
+        for i, lbl in enumerate(eff_labels):
+            row = i + 2
+            label = QLabel(lbl)
+            slider = QSlider(Qt.Orientation.Horizontal)
+            slider.setRange(-90, 90)      # example range, adjust as needed
+            slider.setValue(0)           # default
+            slider.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Fixed)
+
+            lcd = QLCDNumber()
+            lcd.display(0)
+
+            # Connect signals
+            slider.valueChanged.connect(lcd.display)
+            slider.valueChanged.connect(lambda val, idx=i: self.update_effector(idx, val))
+
+            eff_layout.addWidget(label,  row, 0)
+            eff_layout.addWidget(slider, row, 1)
+            eff_layout.addWidget(lcd,    row, 2)
+
+        left_layout.addWidget(self.effector_group)
+
+        # React to port changes
+        self.effector_port_combo.currentIndexChanged.connect(self.on_effector_port_changed)
+        self.update_effector_ports()  # Populate combo box
 
         # ------------------ Right: Camera Toggle and Displays ------------------
 
@@ -188,13 +236,6 @@ class InterfaceLite(QMainWindow):
 
 
 
-
-        # ------------------- INIT CLEANUP ------------------
-        self.update_gantry_ports()
-
-
-
-
     ###### CAMERA GUI CONTROLS #####
 
     def toggle_cameras(self, checked):
@@ -247,7 +288,6 @@ class InterfaceLite(QMainWindow):
         else:
             self.detection_btn.setText("Start Target Detection")
     
-
 
     ##### GANTRY CONTROL #####
     def on_gantry_port_changed(self):
@@ -307,13 +347,47 @@ class InterfaceLite(QMainWindow):
         event.accept()
 
 
-    ##### WINDOW CLOSE HANDLER #####
-    def closeEvent(self, event):
-        """Clean up Gantry serial connection when closing the window."""
-        if self.gantry:
-            self.gantry.disconnect()
-        event.accept()
+   ##### End-Effector Port Handling #####
+    def update_effector_ports(self):
+        self.effector_port_combo.blockSignals(True)
+        self.effector_port_combo.clear()
+        ports = list_ports.comports()
+        if not ports:
+            self.effector_port_combo.addItem("No Ports Found")
+        else:
+            for p in ports:
+                self.effector_port_combo.addItem(p.device)
+        self.effector_port_combo.blockSignals(False)
+        if self.effector_port_combo.count() > 0:
+            self.on_effector_port_changed()
 
+    def on_effector_port_changed(self):
+        port = self.effector_port_combo.currentText()
+        if port in ["No Ports Found", "Waiting"] or not port:
+            return
+        if not self.end_effector:
+            self.end_effector = EndEffector(port=port)
+        else:
+            self.end_effector.set_port(port)
+
+    def update_effector(self, idx, value):
+        """Update internal angles from the sliders (theta, delta)."""
+        if   idx == 0: self.theta = value
+        elif idx == 1: self.delta = value
+
+    def send_effector_command(self):
+        """Send the current theta/delta to the end effector."""
+        if self.end_effector:
+            self.end_effector.goto_position(self.theta, self.delta)
+
+    ### Closing the app
+    def closeEvent(self, event):
+        # Clean up Gantry or EndEffector if needed
+        if self.gantry and self.gantry.ser and self.gantry.ser.is_open:
+            self.gantry.ser.close()
+        if self.end_effector and self.end_effector.ser and self.end_effector.ser.is_open:
+            self.end_effector.ser.close()
+        event.accept()
 
 if __name__ == "__main__":
     app = QApplication(sys.argv)
