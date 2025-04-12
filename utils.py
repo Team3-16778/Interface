@@ -34,14 +34,16 @@ class Camera:
         self.use_csi = use_csi
         self.sensor_id = sensor_id
         self.cam_index = cam_index
+        self.processing_active = False  # New flag for selective processing
 
     def start_cap(self):
         if self.use_csi:
+            # Optimized pipeline with lower resolution
             pipeline = (
                 "nvarguscamerasrc sensor-id={} ! "
-                "video/x-raw(memory:NVMM), width=1280, height=720, format=(string)NV12, "
-                "framerate=(fraction)21/1 ! nvvidconv ! video/x-raw, format=(string)BGRx ! "
-                "videoconvert ! video/x-raw, format=(string)BGR ! appsink"
+                "video/x-raw(memory:NVMM), width=640, height=480, format=(string)NV12, "
+                "framerate=(fraction)30/1 ! nvvidconv ! video/x-raw, format=(string)BGRx ! "
+                "videoconvert ! video/x-raw, format=(string)BGR ! appsink drop=1"
             ).format(self.sensor_id)
             self.cap = cv2.VideoCapture(pipeline, cv2.CAP_GSTREAMER)
         else:
@@ -51,16 +53,16 @@ class Camera:
         ret, frame = self.cap.read()
         if not ret or frame is None:
             return False, None
-        # Optionally do BGR→RGB if you need that, or just skip if you want identical handling
+        
         self.latest_frame = frame
-        self.color_mask.set_frame(frame)
-
+        # Only set frame in color mask if processing is active
+        if self.processing_active:
+            self.color_mask.set_frame(frame)
+            
         return True, self.latest_frame
 
-
     def detect_target(self):
-        self.last_target_center = None  # reset
-        if self.latest_frame is None:
+        if not self.processing_active or self.latest_frame is None:
             return None, None, False
 
         mask, overlay, found = self.color_mask.apply(self.latest_frame)
@@ -78,18 +80,19 @@ class Camera:
     def get_display_frame(self, draw_bbox=True):
         if self.latest_frame is None:
             return None
+            
         display_frame = self.latest_frame.copy()
         if draw_bbox and self.target_found and self.last_target_center:
             x, y = self.last_target_center
-            mask, _, found = self.color_mask.apply(self.latest_frame)
-            contours, _ = cv2.findContours(mask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
-            if contours:
-                largest = max(contours, key=cv2.contourArea)
-                x, y, w, h = cv2.boundingRect(largest)
-                cv2.rectangle(display_frame, (x, y), (x + w, y + h), (0, 255, 0), 2)
+            cv2.rectangle(display_frame, 
+                         (x-10, y-10), (x+10, y+10), 
+                         (0, 255, 0), 2)
 
-        # Convert back to BGR if you need to display it with OpenCV
         return cv2.cvtColor(display_frame, cv2.COLOR_RGB2BGR)
+
+    def set_processing_active(self, active):
+        """Enable/disable all color processing"""
+        self.processing_active = active
 
     def get_center_of_mask(self):
         return self.last_target_center
@@ -109,50 +112,66 @@ class Camera:
 class CameraHandler(QObject):
     frame_ready = Signal(QImage)
     detection_update = Signal(str, bool, tuple)
-
+    
     def __init__(self, cam_index=0, name="Camera", use_csi=False, sensor_id=0):
         super().__init__()
         self.camera = Camera(cam_index, name, use_csi, sensor_id)
         self.active = False
         self.detection_active = False
         self.name = name
+        self.frame_counter = 0
+        self.detection_interval = 3  # Process every 3rd frame for detection
+        self.display_interval = 1    # Display every frame
+        self.last_center = None
 
     def start(self):
         self.camera.start_cap()
         self.active = True
 
-    def stop(self):
-        self.active = False
-        self.camera.release()
-
     def update_frame(self):
         if not self.active:
             return
 
+        self.frame_counter += 1
         ret, frame = self.camera.read_frame()
         if not ret:
             return
 
-        if self.detection_active:
+        # Process detection only when active and interval met
+        if self.detection_active and (self.frame_counter % self.detection_interval == 0):
             self.camera.detect_target()
             if self.camera.target_found and self.camera.last_target_center:
-                center = self.camera.last_target_center
-                self.detection_update.emit(self.name, True, center)
+                self.last_center = self.camera.last_target_center
+                self.detection_update.emit(self.name, True, self.last_center)
             else:
                 self.detection_update.emit(self.name, False, None)
 
-        display_frame = self.camera.get_display_frame(self.detection_active)
-        if display_frame is not None:
-            h, w, ch = display_frame.shape
-            bytes_per_line = ch * w
-            image = QImage(display_frame.data, w, h, bytes_per_line, QImage.Format.Format_RGB888)
-            self.frame_ready.emit(image)
+        # Update display more frequently than detection
+        if self.frame_counter % self.display_interval == 0:
+            display_frame = self.camera.get_display_frame(self.detection_active)
+            if display_frame is not None:
+                h, w, ch = display_frame.shape
+                bytes_per_line = ch * w
+                image = QImage(display_frame.data, w, h, bytes_per_line, QImage.Format.Format_RGB888)
+                self.frame_ready.emit(image)
 
     def toggle_detection(self, active):
         self.detection_active = active
+        self.camera.set_processing_active(active)  # Propagate to camera
+        
+        # Reset counter when toggling to maintain interval timing
+        if active:  
+            self.frame_counter = 0
 
+    def set_detection_interval(self, interval):
+        """Dynamically adjust how often detection runs"""
+        self.detection_interval = max(1, interval)  # Minimum 1 frame
+        
     def open_tuner(self):
+        # Enable full processing while tuner is open
+        self.camera.set_processing_active(True)
         self.camera.open_tuner()
+        
 
 class AbstractSerialDevice(ABC):
     def __init__(self, port="/dev/ttyACM0", baud=9600, timeout=1.0):
