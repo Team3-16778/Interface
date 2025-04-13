@@ -51,10 +51,10 @@ class Camera:
         if self.use_csi:
             pipeline = (
                 "nvarguscamerasrc sensor-id={} ! "
-                "video/x-raw(memory:NVMM), width={}, height={}, format=(string)NV12, "
-                "framerate=(fraction){}/1 ! nvvidconv ! video/x-raw, format=(string)BGRx ! "
+                "video/x-raw(memory:NVMM), width=3280, height=2464, format=(string)NV12, "
+                "framerate=(fraction)21/1 ! nvvidconv ! video/x-raw, format=(string)BGRx ! "
                 "videoconvert ! video/x-raw, format=(string)BGR ! appsink"
-            ).format(self.sensor_id, self.capture_width, self.capture_height, self.framerate)
+            ).format(self.sensor_id)
             self.cap = cv2.VideoCapture(pipeline, cv2.CAP_GSTREAMER)
         else:
             self.cap = cv2.VideoCapture(self.cam_index)
@@ -846,7 +846,13 @@ class RobotControlWindow(QMainWindow):
 
     def positioning_X(self):
         print("Positioning X")
-        self.positioning_row1_status.setText("Pixel Error: 0\nGantry Position: 0")
+        if self.cam1.target_found and self.cam1.last_target_center:
+            c1x, c1y = self.cam1.last_target_center
+            dis1_x, dis1_y = c1x - 300, c1y - 200
+            self.positioning_row1_status.setText("Pixel Error: {}\nGantry X: 0".format(dis1_x))
+        else:
+            self.positioning_row1_status.setText("Target not found")
+            self.positioning_row1_status.setStyleSheet("color: red;")
 
     def positioning_YZ(self):
         print("Positioning YZ")

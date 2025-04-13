@@ -42,6 +42,8 @@ class InterfaceLite(QMainWindow):
         self.cam1_detection_status = None
         self.cam2_detection_status = None
 
+        self.x_error = None
+
         ## ------------------ Window Setup ------------------
         self.setWindowTitle("Discount daVinci Control Interface")
         # Set window size to maximum available screen geometry
@@ -117,6 +119,13 @@ class InterfaceLite(QMainWindow):
             gantry_layout.addWidget(label,  row, 0)
             gantry_layout.addWidget(slider, row, 1)
             gantry_layout.addWidget(lcd,    row, 2)
+        
+        # Position X btn
+        self.position_x_btn = QPushButton("Positional X")
+        self.gantry_command_btn.clicked.connect(self.position_x)
+        gantry_layout.addWidget(self.position_x_btn, 5, 0, 1, 3)
+        self.position_x_timer = QTimer(self)
+        self.position_x_timer.timeout.connect(self.position_x_sender)
 
         control_layout.addWidget(self.gantry_group)
 
@@ -363,6 +372,31 @@ class InterfaceLite(QMainWindow):
         if self.gantry and self.gantry.ser and self.gantry.ser.is_open:
             self.gantry.ser.close()
         event.accept()
+
+    def position_x(self):
+        self.position_x_timer.start(100)
+
+    def position_x_sender(self):
+        # pixel: y 0-400, set cy=200
+        cy = 200
+        kp_x = 0.1
+        if self.camera1.last_center:
+            _ ,target_x = self.camera1.last_center
+            error = target_x - cy
+            if self.x_error is None:
+                self.x_error = error
+            elif error - self.x_error > 100:
+                print("detection error")
+            else:
+                print(self.x_error)
+                self.gantry_x = self.gantry_x + kp_x * self.x_error
+                self.gantry_x = np.clip(self.gantry_x, -100, 200)
+                # self.send_positional_command()
+        if self.x_error is not None and self.x_error < 10:
+            self.position_x_timer.stop()
+            print("target Reached!")
+
+            
 
 
    ##### End-Effector Port Handling #####
