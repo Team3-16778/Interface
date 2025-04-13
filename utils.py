@@ -382,10 +382,15 @@ class HardwareManager:
         if self.camera2:
             self.camera2.stop()
 
-    def camera_to_world_x(self, pixel_x):
+    def camera_to_world_x(self, pixel_x, invert=False):
             """Convert camera pixel x-coordinate to world coordinates (mm)"""
             # Convert from pixel coordinates to mm relative to camera center
-            offset_pixels = pixel_x - self.camera_center_x
+            if invert: # Camera 1 mounted 90 degreed 
+                # Invert the x-axis
+                offset_pixels = self.camera_center_x - pixel_x
+
+            else:
+                offset_pixels = pixel_x - self.camera_center_x
             return offset_pixels * self.pixels_to_mm
     
     def pid_update(self, setpoint, current_value):
@@ -414,31 +419,37 @@ class HardwareManager:
         
         return P + I + D
     
+    def camera_to_gantry_x(self, pixel_y):
+        """Convert camera's Y pixel coordinate to gantry X movement"""
+        # Calculate offset from vertical center (240 for 480px height)
+        offset_from_center = pixel_y - 240  
+        # Convert to mm and invert direction (so camera up = gantry left)
+        return -offset_from_center * self.pixels_to_mm
+    
     def pid_x_axis(self):
-        """Update gantry x position using PID control based on camera target"""
+        """Update gantry x position based on camera's y-axis target position"""
         if not self.camera1 or not self.gantry:
             return
         
         # Get current target from camera
         target = self.camera1.camera.get_center_of_mask()
-        print(f"Target: {target}")
         if not target or not self.camera1.camera.target_found:
             return  # No target detected
         
-        target_x_pixels, _ = target
+        target_x_pixels, target_y_pixels = target
         current_pos = self.gantry.get_position()
         if not current_pos:
             return  # Couldn't get current gantry position
         
         current_x, current_y, current_z = current_pos
         
-        # Convert camera target to world coordinates
-        target_x_mm = self.camera_to_world_x(target_x_pixels)
+        # Convert camera's Y position to gantry X movement
+        target_x_mm = self.camera_to_gantry_x(target_y_pixels)
         
-        # Calculate PID output
-        pid_output = self.pid_update(setpoint=target_x_mm, current_value=current_x)
+        # Calculate PID output (setpoint is center Y position = 240px)
+        pid_output = self.pid_update(setpoint=240, current_value=target_y_pixels)
         
-        # Update gantry position (only x-axis)
+        # Update gantry X position based on camera Y position
         new_x = current_x + pid_output
         self.gantry.set_target(new_x, current_y, current_z)
         self.gantry.send_to_target()
@@ -447,28 +458,26 @@ if __name__ == "__main__":
     app = QApplication(sys.argv)
     manager = HardwareManager()
 
-    # Start cameras with processing enabled
-    manager.camera1.camera.processing_active = True
-    manager.camera2.camera.processing_active = True
-    manager.camera1.detection_active = True
-    manager.camera2.detection_active = True
+    # Calibration parameters
+    manager.pixels_to_mm = 0.1  # Adjust based on your setup
     
+    # Start cameras with processing enabled
     manager.camera1.start()
-    manager.camera2.start()
-
-    # Set PID parameters
-    manager.Kp = 0.2
+    manager.camera1.camera.processing_active = True
+    manager.camera1.detection_active = True
+    
+    # Set PID parameters (may need tuning)
+    manager.Kp = 0.2  
     manager.Ki = 0.01
     manager.Kd = 0.1
 
-    # Create and start a timer for the control loop
+    # Main control loop
     timer = QTimer()
     timer.timeout.connect(lambda: (
         manager.camera1.update_frame(),
-        manager.camera2.update_frame(),
         manager.pid_x_axis(),
-        print(f"Camera 1 Target: {manager.camera1.camera.get_center_of_mask()}")
+        print(f"Camera Y position controlling Gantry X: {manager.camera1.camera.get_center_of_mask()[1]}")
     ))
-    timer.start(500)  # Update every 100ms (10Hz)
-    # Run the application
+    timer.start(100)  # 10Hz update rate
+    
     sys.exit(app.exec())
