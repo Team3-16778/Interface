@@ -334,7 +334,7 @@ class HardwareManager:
         
         # Camera to world coordinates conversion
         self.camera_center_x = 320  # Assuming 640x480 resolution
-        self.pixels_to_mm = 0.1 
+        self.pixels_to_mm = 0.5
 
         self.connect_cameras()
         self.connect_gantry()
