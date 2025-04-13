@@ -362,10 +362,6 @@ class HardwareManager:
         self.camera2: CameraHandler | None = None
         self.gantry: Gantry | None = None
         self.end_effector: EndEffector | None = None
-        
-        # Camera to world coordinates conversion
-        self.camera_center_x = 320  # Assuming 640x480 resolution
-        self.pixels_to_mm = 0.5
 
         self.connect_cameras()
         self.connect_gantry()
@@ -495,9 +491,9 @@ class HardwareManager:
         try:
             _, target_y = target
             center_y = 240
-            step_mm = 3.0
+            step_mm = 2.0
 
-            if abs(target_y - center_y) < 10:
+            if abs(target_y - center_y) < 3:
                 print("Target centered.")
                 return
             elif target_y > center_y:
@@ -538,7 +534,7 @@ if __name__ == "__main__":
 
     timer = QTimer()
     timer.timeout.connect(update_and_control)
-    timer.start(250)  # Update every 2000ms (2 seconds)
+    timer.start(100)  # Update every 2000ms (2 seconds)
 
     # Create a custom event loop that checks for KeyboardInterrupt
     def run_app():
