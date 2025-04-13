@@ -281,8 +281,10 @@ class Gantry(AbstractSerialDevice):
         print(f"SENT: {cmd.strip()}")
 
     def stop(self):
-        """Send STOP command (emergency stop)."""
-        self.ser.write(b"STOP\n")
+        if self.ser is not None:
+            self.ser.write(b"STOP\n")
+        else:
+            print("Warning: Serial connection is None, cannot send STOP")
 
     def home(self):
         """Send HOME command to home the gantry."""
@@ -334,7 +336,10 @@ class EndEffector(AbstractSerialDevice):
         print(f"SENT: {cmd.strip()}")
 
     def stop(self):
-        self.ser.write(b"STOP\n")
+        if self.ser is not None:
+            self.ser.write(b"STOP\n")
+        else:
+            print("Warning: Serial connection is None, cannot send STOP")
 
     def get_angles(self):
         """
@@ -454,6 +459,26 @@ if __name__ == "__main__":
 
     timer = QTimer()
     timer.timeout.connect(update_and_control)
-    timer.start(10)
+    timer.start(2000)  # Update every 2000ms (2 seconds)
 
-    sys.exit(app.exec())
+    # Create a custom event loop that checks for KeyboardInterrupt
+    def run_app():
+        try:
+            sys.exit(app.exec())
+        except KeyboardInterrupt:
+            print("\nKeyboardInterrupt detected. Closing all connections...")
+            manager.close_all()
+            # Ensure we exit cleanly
+            QTimer.singleShot(0, app.quit)
+
+    # Install signal handler for more reliable interrupt handling
+    import signal
+    def handle_interrupt(signum, frame):
+        print("\nKeyboardInterrupt (signal) detected. Closing all connections...")
+        manager.close_all()
+        QTimer.singleShot(0, app.quit)
+    
+    signal.signal(signal.SIGINT, handle_interrupt)
+
+    # Run the application
+    run_app()
