@@ -493,7 +493,7 @@ class HardwareManager:
             center_y = 240
             step_mm = 2.0
 
-            if abs(target_y - center_y) < 3:
+            if abs(target_y - center_y) < 5:
                 print("Target centered.")
                 return
             elif target_y > center_y:
@@ -534,7 +534,7 @@ if __name__ == "__main__":
 
     timer = QTimer()
     timer.timeout.connect(update_and_control)
-    timer.start(100)  # Update every 2000ms (2 seconds)
+    timer.start(200)  # Update every 2000ms (2 seconds)
 
     # Create a custom event loop that checks for KeyboardInterrupt
     def run_app():
