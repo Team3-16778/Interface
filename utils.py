@@ -370,6 +370,12 @@ class HardwareManager:
         self.connect_cameras()
         self.connect_gantry()
         self.connect_effector()
+
+        # Blind control params -- buggy and should be removed upon teammate completion on arduino comm reliability
+        self.current_x = 0.0 
+        self.current_y = 0.0
+        self.current_z = 0.0
+
     
     def connect_gantry(self):
         """Initialize gantry with basic error handling"""
@@ -476,6 +482,36 @@ class HardwareManager:
         except Exception as e:
             print(f"Error in simple controller: {e}")
 
+    ## Teammate isn't here to implement an effective return value for gantry.get_position() so we send it
+    def blind_x_control(self):
+        if not self.camera1 or not self.gantry:
+            return
+
+        target = self.camera1.camera.get_center_of_mask()
+        if not target or not self.camera1.camera.target_found:
+            print("No target detected")
+            return
+
+        try:
+            _, target_y = target
+            center_y = 240
+            step_mm = 3.0
+
+            if abs(target_y - center_y) < 10:
+                print("Target centered.")
+                return
+            elif target_y > center_y:
+                self.current_x -= step_mm
+            else:
+                self.current_x += step_mm
+
+            print(f"Blind step to X: {self.current_x:.2f} (Target Y: {target_y})")
+            self.gantry.set_target(self.current_x, self.current_y, self.current_z)
+            self.gantry.send_to_target()
+
+        except Exception as e:
+            print(f"Error in blind controller: {e}")
+
 
 if __name__ == "__main__":
     app = QApplication(sys.argv)
@@ -493,7 +529,7 @@ if __name__ == "__main__":
 
     def update_and_control():
         manager.camera1.update_frame()
-        manager.x_axis_controller()
+        manager.blind_x_control()
         target = manager.camera1.camera.get_center_of_mask()
         if target:
             print(f"Camera Y position: {target[1]}")
@@ -502,7 +538,7 @@ if __name__ == "__main__":
 
     timer = QTimer()
     timer.timeout.connect(update_and_control)
-    timer.start(1000)  # Update every 2000ms (2 seconds)
+    timer.start(250)  # Update every 2000ms (2 seconds)
 
     # Create a custom event loop that checks for KeyboardInterrupt
     def run_app():
