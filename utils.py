@@ -398,16 +398,47 @@ class HardwareManager:
     
     def close_all(self):
         """Cleanup all connections"""
+        print("Starting shutdown sequence...")
+        
+        # Stop gantry first if moving
         if self.gantry:
+            print("Stopping gantry...")
             self.gantry.stop()
-        if self.camera1:
+        
+        # Special handling for CSI cameras
+        if self.camera1 and self.camera1.camera.use_csi:
+            print("Shutting down Camera 1 (CSI)...")
             self.camera1.stop()
-            time.sleep(0.5)
-        if self.camera2:
+            time.sleep(1.0)  # Extra time for CSI
+            
+        if self.camera2 and self.camera2.camera.use_csi:
+            print("Shutting down Camera 2 (CSI)...")
             self.camera2.stop()
-            time.sleep(0.5)
-
+            time.sleep(1.0)  # Extra time for CSI
+        
+        # Regular camera cleanup
+        if self.camera1 and not self.camera1.camera.use_csi:
+            print("Shutting down Camera 1...")
+            self.camera1.stop()
+            
+        if self.camera2 and not self.camera2.camera.use_csi:
+            print("Shutting down Camera 2...")
+            self.camera2.stop()
+        
+        # Additional cleanup
+        print("Final cleanup...")
         cv2.destroyAllWindows()
+        
+        # Extra garbage collection
+        import gc
+        gc.collect()
+
+        # Restart camera module
+        import os
+        os.system('sudo systemctl restart nvargus-daemon')
+        time.sleep(2.0)
+        
+        print("Shutdown complete")
     
     def pid_x_axis(self):
         """Simplified control: move left if target is right of center, right if left of center."""
