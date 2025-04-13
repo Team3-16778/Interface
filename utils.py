@@ -135,6 +135,7 @@ class CameraHandler(QObject):
         self.detection_interval = 3  # Process every 3rd frame for detection
         self.display_interval = 1    # Display every frame
         self.last_center = None
+        self.gui_active = False
 
     def start(self):
         self.camera.start_cap()
@@ -163,7 +164,7 @@ class CameraHandler(QObject):
                 self.detection_update.emit(self.name, False, None)
 
         # Update display more frequently than detection
-        if self.frame_counter % self.display_interval == 0:
+        if self.frame_counter % self.display_interval == 0 and self.gui_active:
             display_frame = self.camera.get_display_frame(self.detection_active)
             if display_frame is not None:
                 h, w, ch = display_frame.shape
@@ -195,7 +196,14 @@ class AbstractSerialDevice(ABC):
         self.baud = baud
         self.timeout = timeout
         self.ser = None
-        self._open_serial()
+
+        try:
+            if self.port:
+                self._open_serial()
+            else:
+                print("No port specified. Serial connection not opened.")
+        except Exception as e:
+            print(f"Failed to open serial connection: {e}")
 
     def _open_serial(self):
         """(Re)open the serial connection using current settings."""
@@ -236,6 +244,12 @@ class Gantry(AbstractSerialDevice):
         super().__init__(port=port, baud=baud, timeout=timeout)
         print(f"Initialized Gantry on {port} at {baud} baud.")
 
+        self.target_x = 0.0
+        self.target_y = 0.0
+        self.target_z = 0.0
+
+        time.sleep(2)
+
     def goto_position(self, x, y, z):
         """Send GOTO command to move gantry to (x, y, z)."""
         cmd = f"GOTO {x:.2f} {y:.2f} {z:.2f}\n"
@@ -264,6 +278,25 @@ class Gantry(AbstractSerialDevice):
                 return (x, y, z)
         return None
 
+    def get_target(self):
+        """
+        Return the target position as a tuple (x, y, z).
+        """
+        return (self.target_x, self.target_y, self.target_z)
+    
+    def set_target(self, x, y, z):
+        """
+        Set the target position for the gantry.
+        """
+        self.target_x = x
+        self.target_y = y
+        self.target_z = z
+
+    def send_to_target(self):
+        """
+        Send the current target position to the gantry.
+        """
+        self.goto_position(self.target_x, self.target_y, self.target_z)
 
 class EndEffector(AbstractSerialDevice):
     def __init__(self, port="/dev/ttyACM1", baud=9600, timeout=1.0):
@@ -294,15 +327,27 @@ class EndEffector(AbstractSerialDevice):
         return None
 class HardwareManager:
     def __init__(self):
-        self.camera1 = None
-        self.camera2 = None
-        self.gantry = None
-        self.end_effector = None
+        self.camera1: CameraHandler | None = None
+        self.camera2: CameraHandler | None = None
+        self.gantry: Gantry | None = None
+        self.end_effector: EndEffector | None = None
+
+        # PID Control Parameters
+        self.Kp = 0.1  # Proportional gain
+        self.Ki = 0.01  # Integral gain
+        self.Kd = 0.05  # Derivative gain
+        self.integral_error = 0.0
+        self.last_error = 0.0
+        self.last_time = time.time()
+        
+        # Camera to world coordinates conversion
+        self.camera_center_x = 320  # Assuming 640x480 resolution
+        self.pixels_to_mm = 0.1 
 
         self.connect_cameras()
         self.connect_gantry()
         self.connect_effector()
-        
+    
     def connect_gantry(self):
         """Initialize gantry with basic error handling"""
         try:
@@ -316,7 +361,6 @@ class HardwareManager:
             self.effector = EndEffector()
         except Exception as e:
             print(f"End Effector init failed: {e}")
-
 
     def connect_cameras(self):
         """Initialize cameras with basic error handling"""
@@ -337,3 +381,94 @@ class HardwareManager:
             self.camera1.stop()
         if self.camera2:
             self.camera2.stop()
+
+    def camera_to_world_x(self, pixel_x):
+            """Convert camera pixel x-coordinate to world coordinates (mm)"""
+            # Convert from pixel coordinates to mm relative to camera center
+            offset_pixels = pixel_x - self.camera_center_x
+            return offset_pixels * self.pixels_to_mm
+    
+    def pid_update(self, setpoint, current_value):
+        """Calculate PID control output"""
+        current_time = time.time()
+        dt = current_time - self.last_time
+        if dt <= 0:
+            return 0.0
+        
+        error = setpoint - current_value
+        
+        # Proportional term
+        P = self.Kp * error
+        
+        # Integral term (with anti-windup)
+        self.integral_error += error * dt
+        I = self.Ki * self.integral_error
+        
+        # Derivative term
+        derivative = (error - self.last_error) / dt
+        D = self.Kd * derivative
+        
+        # Update for next iteration
+        self.last_error = error
+        self.last_time = current_time
+        
+        return P + I + D
+    
+    def pid_x_axis(self):
+        """Update gantry x position using PID control based on camera target"""
+        if not self.camera1 or not self.gantry:
+            return
+        
+        # Get current target from camera
+        target = self.camera1.camera.get_center_of_mask()
+        print(f"Target: {target}")
+        if not target or not self.camera1.camera.target_found:
+            return  # No target detected
+        
+        target_x_pixels, _ = target
+        current_pos = self.gantry.get_position()
+        if not current_pos:
+            return  # Couldn't get current gantry position
+        
+        current_x, current_y, current_z = current_pos
+        
+        # Convert camera target to world coordinates
+        target_x_mm = self.camera_to_world_x(target_x_pixels)
+        
+        # Calculate PID output
+        pid_output = self.pid_update(setpoint=target_x_mm, current_value=current_x)
+        
+        # Update gantry position (only x-axis)
+        new_x = current_x + pid_output
+        self.gantry.set_target(new_x, current_y, current_z)
+        self.gantry.send_to_target()
+
+if __name__ == "__main__":
+    app = QApplication(sys.argv)
+    manager = HardwareManager()
+
+    # Start cameras with processing enabled
+    manager.camera1.camera.processing_active = True
+    manager.camera2.camera.processing_active = True
+    manager.camera1.detection_active = True
+    manager.camera2.detection_active = True
+    
+    manager.camera1.start()
+    manager.camera2.start()
+
+    # Set PID parameters
+    manager.Kp = 0.2
+    manager.Ki = 0.01
+    manager.Kd = 0.1
+
+    # Create and start a timer for the control loop
+    timer = QTimer()
+    timer.timeout.connect(lambda: (
+        manager.camera1.update_frame(),
+        manager.camera2.update_frame(),
+        manager.pid_x_axis(),
+        print(f"Camera 1 Target: {manager.camera1.camera.get_center_of_mask()}")
+    ))
+    timer.start(500)  # Update every 100ms (10Hz)
+    # Run the application
+    sys.exit(app.exec())

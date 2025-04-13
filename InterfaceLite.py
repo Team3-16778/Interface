@@ -26,6 +26,8 @@ class InterfaceLite(QMainWindow):
         self.end_effector = self.hw.end_effector if hardware_manager else None  
         self.camera1 = self.hw.camera1 if hardware_manager else None
         self.camera2 = self.hw.camera2 if hardware_manager else None
+        self.camera1.gui_active = True
+        self.camera2.gui_active = True
 
 
         ## ------------------ Inner Parameters ------------------
