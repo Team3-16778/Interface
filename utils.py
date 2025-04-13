@@ -54,6 +54,8 @@ class Camera:
             self.cap = cv2.VideoCapture(pipeline, cv2.CAP_GSTREAMER)
         else:
             self.cap = cv2.VideoCapture(self.cam_index)
+            self.cap.set(cv2.CAP_PROP_FRAME_WIDTH, 640)
+            self.cap.set(cv2.CAP_PROP_FRAME_HEIGHT, 480)
             
         self._is_capturing = True
 
@@ -423,10 +425,11 @@ class HardwareManager:
             current_x, current_y, current_z = self.gantry.get_position()
             
             # Update gantry X position based on camera Y position
-            new_x = (240 - target_y) * self.pixels_to_mm
-            new_x = (540 - target_y)
-
-            
+            error = 240 - target_y
+            gain = 0.2  # Tune this
+            delta_x = gain * error * self.pixels_to_mm
+            new_x = current_x + delta_x
+                        
             print(f"Moving gantry to X: {new_x:.2f} based on camera Y: {target_y}")
             self.gantry.set_target(new_x, current_y, current_z)
             self.gantry.send_to_target()
