@@ -439,8 +439,8 @@ class HardwareManager:
         time.sleep(2.0)
         
         print("Shutdown complete")
-    
-    def pid_x_axis(self):
+
+    def x_axis_controller(self):
         """Simplified control: move left if target is right of center, right if left of center."""
         if not self.camera1 or not self.gantry:
             return
@@ -454,16 +454,20 @@ class HardwareManager:
             _, target_y = target
             center_y = 240  # Midpoint of 480px frame
 
-            current_x, current_y, current_z = self.gantry.get_position()
+            pos = self.gantry.get_position()
+            if not pos:
+                print("Could not read gantry position")
+                return
+            current_x, current_y, current_z = pos
 
             step_mm = 3.0  # Fixed step size
-            if target_y > center_y:
-                new_x = current_x - step_mm  # Move left
-            elif target_y < center_y:
-                new_x = current_x + step_mm  # Move right
-            else:
+            if abs(target_y - center_y) < 10:
                 print("Target centered.")
                 return
+            elif target_y > center_y:
+                new_x = current_x - step_mm  # Move left
+            else:
+                new_x = current_x + step_mm  # Move right
 
             print(f"Step move to X: {new_x:.2f} (Target Y: {target_y})")
             self.gantry.set_target(new_x, current_y, current_z)
@@ -472,32 +476,6 @@ class HardwareManager:
         except Exception as e:
             print(f"Error in simple controller: {e}")
 
-            """Update gantry x position based on camera's y-axis target position"""
-            if not self.camera1 or not self.gantry:
-                return
-            
-            # Get current target from camera
-            target = self.camera1.camera.get_center_of_mask()
-            if not target or not self.camera1.camera.target_found:
-                print("No target detected")
-                return  # No target detected
-            
-            try:
-                _, target_y = target
-                current_x, current_y, current_z = self.gantry.get_position()
-                
-                # Update gantry X position based on camera Y position
-                error = 240 - target_y
-                gain = 0.2  # Tune this
-                delta_x = gain * error * self.pixels_to_mm
-                new_x = current_x + delta_x
-                            
-                print(f"Moving gantry to X: {new_x:.2f} based on camera Y: {target_y}")
-                self.gantry.set_target(new_x, current_y, current_z)
-                self.gantry.send_to_target()
-                
-            except Exception as e:
-                print(f"Error in PID control: {e}")
 
 if __name__ == "__main__":
     app = QApplication(sys.argv)
@@ -515,7 +493,7 @@ if __name__ == "__main__":
 
     def update_and_control():
         manager.camera1.update_frame()
-        manager.pid_x_axis()
+        manager.x_axis_controller()
         target = manager.camera1.camera.get_center_of_mask()
         if target:
             print(f"Camera Y position: {target[1]}")
