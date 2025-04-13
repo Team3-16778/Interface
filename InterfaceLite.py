@@ -18,7 +18,7 @@ from utils import Gantry, EndEffector, Camera, CameraHandler, HardwareManager
 
 
 class InterfaceLite(QMainWindow):
-    def __init__(self, hardware_manager=None):
+    def __init__(self, hardware_manager: HardwareManager = None):
         super().__init__()
 
         self.hw = hardware_manager
@@ -364,15 +364,6 @@ class InterfaceLite(QMainWindow):
         elif idx == 2:
             self.gantry_z = value
 
-    def closeEvent(self, event):
-        """
-        Clean up Gantry connection on window close, if desired:
-        self.gantry.ser.close() ensures the port is freed.
-        """
-        if self.gantry and self.gantry.ser and self.gantry.ser.is_open:
-            self.gantry.ser.close()
-        event.accept()
-
     def position_x(self):
         self.position_x_timer.start(100)
 
@@ -433,21 +424,22 @@ class InterfaceLite(QMainWindow):
         if self.end_effector:
             self.end_effector.goto_position(self.theta, self.delta)
 
-    ### Closing the app
     def closeEvent(self, event):
-        # Clean up Gantry or EndEffector if needed
-        if self.gantry and self.gantry.ser and self.gantry.ser.is_open:
-            self.gantry.ser.close()
-        if self.end_effector and self.end_effector.ser and self.end_effector.ser.is_open:
-            self.end_effector.ser.close()
+        print("Closing hardware connections...")
+        self.hw.close_all()
         event.accept()
+
+
 
 if __name__ == "__main__":
     app = QApplication(sys.argv)
-
-    # Initialize the hardware manager
+    app.setStyle("Fusion")
+    
+    # Create hardware manager
     hardware_manager = HardwareManager()
     
-    window = InterfaceLite(hardware_manager)
-    window.show()
+    # Create and show the interface
+    interface = InterfaceLite(hardware_manager=hardware_manager)
+    interface.show()
+
     sys.exit(app.exec())
