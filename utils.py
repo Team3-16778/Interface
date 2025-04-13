@@ -331,14 +331,6 @@ class HardwareManager:
         self.camera2: CameraHandler | None = None
         self.gantry: Gantry | None = None
         self.end_effector: EndEffector | None = None
-
-        # PID Control Parameters
-        self.Kp = 0.1  # Proportional gain
-        self.Ki = 0.01  # Integral gain
-        self.Kd = 0.05  # Derivative gain
-        self.integral_error = 0.0
-        self.last_error = 0.0
-        self.last_time = time.time()
         
         # Camera to world coordinates conversion
         self.camera_center_x = 320  # Assuming 640x480 resolution
@@ -390,15 +382,20 @@ class HardwareManager:
         # Get current target from camera
         target = self.camera1.camera.get_center_of_mask()
         if not target or not self.camera1.camera.target_found:
+            print("No target detected")
             return  # No target detected
         
-        _, target_y = target
-        current_x, current_y, current_z = self.gantry.get_position()
-        
-        # Update gantry X position based on camera Y position
-        new_x = -(240 - target_y)* self.pixels_to_mm
-        self.gantry.set_target(new_x, current_y, current_z)
-        self.gantry.send_to_target()
+        try:
+            _, target_y = target
+            current_x, current_y, current_z = self.gantry.get_position()
+            
+            # Update gantry X position based on camera Y position
+            new_x = -(240 - target_y) * self.pixels_to_mm
+            self.gantry.set_target(new_x, current_y, current_z)
+            self.gantry.send_to_target()
+            print(f"Moving gantry to X: {new_x:.2f} based on camera Y: {target_y}")
+        except Exception as e:
+            print(f"Error in PID control: {e}")
 
 if __name__ == "__main__":
     app = QApplication(sys.argv)
@@ -411,19 +408,20 @@ if __name__ == "__main__":
     manager.camera1.start()
     manager.camera1.camera.processing_active = True
     manager.camera1.detection_active = True
-    
-    # Set PID parameters (may need tuning)
-    manager.Kp = 0.2  
-    manager.Ki = 0.01
-    manager.Kd = 0.1
 
-    # Main control loop
+    manager.camera1.open_tuner()
+
+    def update_and_control():
+        manager.camera1.update_frame()
+        manager.pid_x_axis()
+        target = manager.camera1.camera.get_center_of_mask()
+        if target:
+            print(f"Camera Y position: {target[1]}")
+        else:
+            print("No target detected")
+
     timer = QTimer()
-    timer.timeout.connect(lambda: (
-        manager.camera1.update_frame(),
-        manager.pid_x_axis(),
-        print(f"Camera Y position controlling Gantry X: {manager.camera1.camera.get_center_of_mask()[1]}")
-    ))
-    timer.start(10000)  # Set timer interval to 10 seconds (10000 ms)
-    
+    timer.timeout.connect(update_and_control)
+    timer.start(3000)
+
     sys.exit(app.exec())
