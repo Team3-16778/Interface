@@ -16,11 +16,10 @@ from PySide6.QtWidgets import (
     QApplication, QMainWindow, QWidget, QLabel, QPushButton, QSlider, QVBoxLayout,
     QHBoxLayout, QGroupBox, QGridLayout, QComboBox, QLCDNumber, QSizePolicy, QLineEdit
 )
-from PySide6.QtCore import Qt, QTimer, QThread, Signal, QObject
+from PySide6.QtCore import Qt, QTimer, QThread, Signal, QObject, Slot, QMutex, QMutexLocker
 from PySide6.QtGui import QImage, QPixmap, QGuiApplication, QFont, QDoubleValidator
 
 from ColorMask import ColorMask
-
 class Camera:
     def __init__(
         self,
@@ -37,8 +36,13 @@ class Camera:
         self.sensor_id = sensor_id
         self.cam_index = cam_index
         self.processing_active = False  # New flag for selective processing
+        self._is_capturing = False
+        self.cap = None
 
     def start_cap(self):
+        if self._is_capturing:
+            return
+            
         if self.use_csi:
             # Optimized pipeline with lower resolution
             pipeline = (
@@ -50,18 +54,40 @@ class Camera:
             self.cap = cv2.VideoCapture(pipeline, cv2.CAP_GSTREAMER)
         else:
             self.cap = cv2.VideoCapture(self.cam_index)
+            
+        self._is_capturing = True
 
     def read_frame(self):
+        if not self._is_capturing or self.cap is None:
+            return False, None
+            
         ret, frame = self.cap.read()
         if not ret or frame is None:
             return False, None
         
         self.latest_frame = frame
-        # Only set frame in color mask if processing is active
         if self.processing_active:
             self.color_mask.set_frame(frame)
             
         return True, self.latest_frame
+
+    def release(self):
+        if not self._is_capturing:
+            return
+            
+        if self.cap is not None:
+            if self.use_csi:
+                # Special handling for CSI cameras
+                self.cap.release()
+                # Add small delay to ensure resources are freed
+                time.sleep(0.1)
+            else:
+                self.cap.release()
+                
+            self.cap = None
+            
+        self._is_capturing = False
+        self.latest_frame = None
 
     def detect_target(self):
         if not self.processing_active or self.latest_frame is None:
@@ -112,15 +138,6 @@ class Camera:
     def open_tuner(self):
         self.color_mask.open_tuner()
 
-    def release(self):
-        if self.use_csi:
-            # If you are using the CSI_Camera code that spawns a thread:
-            # self.cap.stop()       # stop the background thread
-            self.cap.release()    # then release pipeline
-        else:
-            # If it’s just plain cv2.VideoCapture(...) with a GStreamer pipeline
-            self.cap.release()
-
 class CameraHandler(QObject):
     frame_ready = Signal(QImage)
     detection_update = Signal(str, bool, tuple)
@@ -132,45 +149,52 @@ class CameraHandler(QObject):
         self.detection_active = True
         self.name = name
         self.frame_counter = 0
-        self.detection_interval = 3  # Process every 3rd frame for detection
-        self.display_interval = 1    # Display every frame
+        self.detection_interval = 3
+        self.display_interval = 1
         self.last_center = None
         self.gui_active = False
+        self._mutex = QMutex()  # Add mutex for thread safety
 
     def start(self):
-        self.camera.start_cap()
-        self.active = True
+        with QMutexLocker(self._mutex):
+            self.camera.start_cap()
+            self.active = True
         
     def stop(self):
-        self.active = False
-        self.camera.release()
+        with QMutexLocker(self._mutex):
+            self.active = False
+            self.camera.release()
 
     def update_frame(self):
         if not self.active:
             return
+            
+        with QMutexLocker(self._mutex):
+            if not self.camera._is_capturing:
+                return
+                
+            self.frame_counter += 1
+            ret, frame = self.camera.read_frame()
+            if not ret:
+                return
 
-        self.frame_counter += 1
-        ret, frame = self.camera.read_frame()
-        if not ret:
-            return
+            # Process detection only when active and interval met
+            if self.detection_active and (self.frame_counter % self.detection_interval == 0):
+                self.camera.detect_target()
+                if self.camera.target_found and self.camera.last_target_center:
+                    self.last_center = self.camera.last_target_center
+                    self.detection_update.emit(self.name, True, self.last_center)
+                else:
+                    self.detection_update.emit(self.name, False, None)
 
-        # Process detection only when active and interval met
-        if self.detection_active and (self.frame_counter % self.detection_interval == 0):
-            self.camera.detect_target()
-            if self.camera.target_found and self.camera.last_target_center:
-                self.last_center = self.camera.last_target_center
-                self.detection_update.emit(self.name, True, self.last_center)
-            else:
-                self.detection_update.emit(self.name, False, None)
-
-        # Update display more frequently than detection
-        if self.frame_counter % self.display_interval == 0 and self.gui_active:
-            display_frame = self.camera.get_display_frame(self.detection_active)
-            if display_frame is not None:
-                h, w, ch = display_frame.shape
-                bytes_per_line = ch * w
-                image = QImage(display_frame.data, w, h, bytes_per_line, QImage.Format.Format_RGB888)
-                self.frame_ready.emit(image)
+            # Update display more frequently than detection
+            if self.frame_counter % self.display_interval == 0 and self.gui_active:
+                display_frame = self.camera.get_display_frame(self.detection_active)
+                if display_frame is not None:
+                    h, w, ch = display_frame.shape
+                    bytes_per_line = ch * w
+                    image = QImage(display_frame.data, w, h, bytes_per_line, QImage.Format.Format_RGB888)
+                    self.frame_ready.emit(image)
 
     def toggle_detection(self, active):
         self.detection_active = active
@@ -371,9 +395,13 @@ class HardwareManager:
             self.gantry.stop()
         if self.camera1:
             self.camera1.stop()
+            time.sleep(0.5)
         if self.camera2:
             self.camera2.stop()
+            time.sleep(0.5)
 
+        cv2.destroyAllWindows()
+    
     def pid_x_axis(self):
         """Update gantry x position based on camera's y-axis target position"""
         if not self.camera1 or not self.gantry:
@@ -391,9 +419,13 @@ class HardwareManager:
             
             # Update gantry X position based on camera Y position
             new_x = (240 - target_y) * self.pixels_to_mm
+            new_x = (540 - target_y)
+
+            
+            print(f"Moving gantry to X: {new_x:.2f} based on camera Y: {target_y}")
             self.gantry.set_target(new_x, current_y, current_z)
             self.gantry.send_to_target()
-            print(f"Moving gantry to X: {new_x:.2f} based on camera Y: {target_y}")
+            
         except Exception as e:
             print(f"Error in PID control: {e}")
 
@@ -422,6 +454,6 @@ if __name__ == "__main__":
 
     timer = QTimer()
     timer.timeout.connect(update_and_control)
-    timer.start(2000)
+    timer.start(10)
 
     sys.exit(app.exec())
