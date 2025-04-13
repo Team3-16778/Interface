@@ -390,7 +390,7 @@ class HardwareManager:
             current_x, current_y, current_z = self.gantry.get_position()
             
             # Update gantry X position based on camera Y position
-            new_x = -(240 - target_y) * self.pixels_to_mm
+            new_x = (240 - target_y) * self.pixels_to_mm
             self.gantry.set_target(new_x, current_y, current_z)
             self.gantry.send_to_target()
             print(f"Moving gantry to X: {new_x:.2f} based on camera Y: {target_y}")
@@ -422,6 +422,6 @@ if __name__ == "__main__":
 
     timer = QTimer()
     timer.timeout.connect(update_and_control)
-    timer.start(3000)
+    timer.start(2000)
 
     sys.exit(app.exec())
