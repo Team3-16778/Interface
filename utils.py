@@ -410,32 +410,63 @@ class HardwareManager:
         cv2.destroyAllWindows()
     
     def pid_x_axis(self):
-        """Update gantry x position based on camera's y-axis target position"""
+        """Simplified control: move left if target is right of center, right if left of center."""
         if not self.camera1 or not self.gantry:
             return
-        
-        # Get current target from camera
+
         target = self.camera1.camera.get_center_of_mask()
         if not target or not self.camera1.camera.target_found:
             print("No target detected")
-            return  # No target detected
-        
+            return
+
         try:
             _, target_y = target
+            center_y = 240  # Midpoint of 480px frame
+
             current_x, current_y, current_z = self.gantry.get_position()
-            
-            # Update gantry X position based on camera Y position
-            error = 240 - target_y
-            gain = 0.2  # Tune this
-            delta_x = gain * error * self.pixels_to_mm
-            new_x = current_x + delta_x
-                        
-            print(f"Moving gantry to X: {new_x:.2f} based on camera Y: {target_y}")
+
+            step_mm = 3.0  # Fixed step size
+            if target_y > center_y:
+                new_x = current_x - step_mm  # Move left
+            elif target_y < center_y:
+                new_x = current_x + step_mm  # Move right
+            else:
+                print("Target centered.")
+                return
+
+            print(f"Step move to X: {new_x:.2f} (Target Y: {target_y})")
             self.gantry.set_target(new_x, current_y, current_z)
             self.gantry.send_to_target()
-            
+
         except Exception as e:
-            print(f"Error in PID control: {e}")
+            print(f"Error in simple controller: {e}")
+
+            """Update gantry x position based on camera's y-axis target position"""
+            if not self.camera1 or not self.gantry:
+                return
+            
+            # Get current target from camera
+            target = self.camera1.camera.get_center_of_mask()
+            if not target or not self.camera1.camera.target_found:
+                print("No target detected")
+                return  # No target detected
+            
+            try:
+                _, target_y = target
+                current_x, current_y, current_z = self.gantry.get_position()
+                
+                # Update gantry X position based on camera Y position
+                error = 240 - target_y
+                gain = 0.2  # Tune this
+                delta_x = gain * error * self.pixels_to_mm
+                new_x = current_x + delta_x
+                            
+                print(f"Moving gantry to X: {new_x:.2f} based on camera Y: {target_y}")
+                self.gantry.set_target(new_x, current_y, current_z)
+                self.gantry.send_to_target()
+                
+            except Exception as e:
+                print(f"Error in PID control: {e}")
 
 if __name__ == "__main__":
     app = QApplication(sys.argv)
@@ -462,7 +493,7 @@ if __name__ == "__main__":
 
     timer = QTimer()
     timer.timeout.connect(update_and_control)
-    timer.start(2000)  # Update every 2000ms (2 seconds)
+    timer.start(1000)  # Update every 2000ms (2 seconds)
 
     # Create a custom event loop that checks for KeyboardInterrupt
     def run_app():
