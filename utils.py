@@ -251,6 +251,28 @@ class AbstractSerialDevice(ABC):
             self.timeout = timeout
         self._open_serial()
 
+    def home(self):
+        """Send HOME command."""
+        try:
+            if self.ser is not None:
+                print("Homing device...")
+                self.ser.write(b"HOME\n")
+            else:
+                print("Warning: Serial connection is None, cannot send HOME")
+        except Exception as e:
+            print(f"Error while sending HOME command: {e}")
+    
+    def inject(self):
+        """Send INJECT command."""
+        try:
+            if self.ser is not None:
+                print("Injecting...")
+                self.ser.write(b"INJECT\n")
+            else:
+                print("Warning: Serial connection is None, cannot send INJECT")
+        except Exception as e:
+            print(f"Error while sending INJECT command: {e}")
+
     @abstractmethod
     def goto_position(self, *args):
         """
@@ -287,10 +309,6 @@ class Gantry(AbstractSerialDevice):
             self.ser.write(b"STOP\n")
         else:
             print("Warning: Serial connection is None, cannot send STOP")
-
-    def home(self):
-        """Send HOME command to home the gantry."""
-        self.ser.write(b"HOME\n")
 
     def get_position(self):
         """
@@ -383,7 +401,7 @@ class HardwareManager:
     def connect_effector(self):
         """Initialize end effector with basic error handling"""
         try:
-            self.effector = EndEffector()
+            self.end_effector = EndEffector()
         except Exception as e:
             print(f"End Effector init failed: {e}")
 
@@ -507,14 +525,29 @@ class HardwareManager:
 
         except Exception as e:
             print(f"Error in blind controller: {e}")
+    
+    def send_yz_position(self, y, z):
+        """Send Y and Z commands to the gantry while keeping X fixed."""
+        self.current_y = y
+        self.current_z = z
+        self.gantry.set_target(self.current_x, y, z)
+        self.gantry.send_to_target()
 
+    def send_theta_to_effector(self, theta, delta=0.0):
+        """Send rotation command to end effector."""
+        if self.end_effector:
+            self.end_effector.goto_position(theta, delta)
+
+    def inject_all(self):
+        """Trigger injection on both gantry and end effector."""
+        if self.gantry:
+            self.gantry.inject()
+        if self.end_effector:
+            self.end_effector.inject()
 
 if __name__ == "__main__":
     app = QApplication(sys.argv)
     manager = HardwareManager()
-
-    # Calibration parameters
-    manager.pixels_to_mm = 0.1  # Adjust based on your setup
     
     # Start cameras with processing enabled
     manager.camera1.start()
@@ -523,9 +556,13 @@ if __name__ == "__main__":
 
     manager.camera1.open_tuner()
 
+    alignment_active = True  # Control flag for X alignment loop
+
+    # Continuous update loop
     def update_and_control():
         manager.camera1.update_frame()
-        manager.blind_x_control()
+        if alignment_active:
+            manager.blind_x_control()
         target = manager.camera1.camera.get_center_of_mask()
         if target:
             print(f"Camera Y position: {target[1]}")
@@ -534,19 +571,52 @@ if __name__ == "__main__":
 
     timer = QTimer()
     timer.timeout.connect(update_and_control)
-    timer.start(200)  # Update every 2000ms (2 seconds)
+    timer.start(200)  # Update every 200 ms
 
-    # Create a custom event loop that checks for KeyboardInterrupt
+    # Delayed sequence: Y/Z move, theta rotation, inject
+    def run_sequence_after_alignment():
+        global alignment_active
+        alignment_active = False  # Stop X control
+        print("\n[Sequence Start] Holding X, moving to Y/Z, rotating theta, then injecting.")
+
+        def step1():
+            manager.send_yz_position(y=50.0, z=20.0)
+            print("Moving to Y/Z position.")
+            QTimer.singleShot(2000, step2)
+
+        def step2():
+            manager.send_theta_to_effector(theta=90.0, delta=0.0)
+            print("Theta sent to end effector.")
+            QTimer.singleShot(2000, step3)
+
+        def step3():
+            manager.inject_all()
+            print("[Injecting — waiting 1 minute before homing]")
+            QTimer.singleShot(60000, step4)
+
+        def step4():
+            manager.gantry.home()
+            print("Gantry homed.")
+            QTimer.singleShot(1000, step5)
+
+        def step5():
+            manager.effector.home()
+            print("End effector homed.")
+
+        step1()
+    
+    # Start sequence after 10s
+    QTimer.singleShot(10000, run_sequence_after_alignment)
+
+    # Graceful shutdown on Ctrl+C
     def run_app():
         try:
             sys.exit(app.exec())
         except KeyboardInterrupt:
             print("\nKeyboardInterrupt detected. Closing all connections...")
             manager.close_all()
-            # Ensure we exit cleanly
             QTimer.singleShot(0, app.quit)
 
-    # Install signal handler for more reliable interrupt handling
     import signal
     def handle_interrupt(signum, frame):
         print("\nKeyboardInterrupt (signal) detected. Closing all connections...")
@@ -555,5 +625,4 @@ if __name__ == "__main__":
     
     signal.signal(signal.SIGINT, handle_interrupt)
 
-    # Run the application
     run_app()
