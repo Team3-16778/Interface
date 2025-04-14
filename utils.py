@@ -622,10 +622,10 @@ if __name__ == "__main__":
     app = QApplication(sys.argv)
     manager = HardwareManager()
 
-    # import the camera parameters
+    # Load calibration files
     manager.camera1.camera.camera_intrinsics = np.load('camera2_calibration_data.npz')
     manager.camera1.camera.camera_extrinsics = np.load('cam2_external_parameters_2.npz')
-    
+
     # Start cameras with processing enabled
     manager.camera1.start()
     manager.camera1.camera.processing_active = True
@@ -633,28 +633,28 @@ if __name__ == "__main__":
 
     manager.camera1.open_tuner()
 
-    alignment_active = False  # Global flag to enable X control during first step
+    alignment_active = False  # Global flag to enable X control during alignment
 
-    def run_full_automation_sequence():
-        print("\n[Sequence Start] Aligning X, then moving to Y/Z, rotating theta, then injecting.")
-
-        sequence_timer = QTimer()
-
-        def update_and_control():
-            manager.camera1.update_frame()
-            if alignment_active:
-                manager.blind_x_control()
-            target = manager.camera1.camera.get_center_of_mask()
+    # Global camera update + control loop
+    def update_and_control():
+        manager.camera1.update_frame()
+        if alignment_active:
+            manager.blind_x_control()
+        target = manager.camera1.camera.get_center_of_mask()
+        if target:
             u, v = target
             world_3d = manager.camera1.camera.get_world_3d(u, v)
-            print(world_3d)
-            # if target:
-            #     print(f"Live camera Y position: {target[1]}")
-            # else:
-            #     print("No target detected")
+            print("3D position:", world_3d)
+        else:
+            print("No target detected")
 
-        sequence_timer.timeout.connect(update_and_control)
-        sequence_timer.start(200)
+    timer = QTimer()
+    timer.timeout.connect(update_and_control)
+    timer.start(200)
+
+    # Main automation sequence
+    def run_full_automation_sequence():
+        print("\n[Sequence Start] Aligning X, then moving to Y/Z, rotating theta, then injecting.")
 
         def step1_align_x():
             global alignment_active
@@ -680,7 +680,7 @@ if __name__ == "__main__":
             QTimer.singleShot(2000, step4b_inject_both)
 
         def step4b_inject_both():
-            print("Step 4: Injecting.")
+            print("Step 4b: Injecting both.")
             manager.inject_all()
             QTimer.singleShot(5000, step4c_retract_sample)
 
@@ -690,13 +690,12 @@ if __name__ == "__main__":
             QTimer.singleShot(2000, step5_home)
 
         def step5_home():
-            print("Step 5: Homing gantry.")
+            print("Step 5: Homing gantry and end effector.")
             manager.home_all()
 
-        
         step1_align_x()
 
-    # Start sequence immediately or on a GUI event
+    # Start sequence after app init
     QTimer.singleShot(0, run_full_automation_sequence)
 
     # Graceful shutdown on Ctrl+C
@@ -713,7 +712,7 @@ if __name__ == "__main__":
         print("\nKeyboardInterrupt (signal) detected. Closing all connections...")
         manager.close_all()
         QTimer.singleShot(0, app.quit)
-    
+
     signal.signal(signal.SIGINT, handle_interrupt)
 
     run_app()
