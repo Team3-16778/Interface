@@ -667,27 +667,27 @@ if __name__ == "__main__":
             alignment_active = False
             print("Step 2: Sending Y/Z position.")
             manager.send_yz_position(y=50.0, z=20.0)
-            QTimer.singleShot(2000, step3_theta)
+            QTimer.singleShot(10000, step3_theta)
 
         def step3_theta():
             print("Step 3: Sending theta to end effector.")
             manager.send_theta_to_effector(theta=100.0, delta=0.0)
-            QTimer.singleShot(2000, step4a_inject_gantry)
+            QTimer.singleShot(10000, step4a_inject_gantry)
 
         def step4a_inject_gantry():
             print("Step 4a: Injecting gantry.")
             manager.gantry.injectA()
-            QTimer.singleShot(2000, step4b_inject_both)
+            QTimer.singleShot(10000, step4b_inject_both)
 
         def step4b_inject_both():
             print("Step 4b: Injecting both.")
             manager.inject_all()
-            QTimer.singleShot(5000, step4c_retract_sample)
+            QTimer.singleShot(10000, step4c_retract_sample)
 
         def step4c_retract_sample():
             print("Step 4c: Retracting sample.")
             manager.gantry.injectC()
-            QTimer.singleShot(2000, step5_home)
+            QTimer.singleShot(10000, step5_home)
 
         def step5_home():
             print("Step 5: Homing gantry and end effector.")
