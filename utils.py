@@ -624,7 +624,7 @@ if __name__ == "__main__":
 
     # Load calibration files
     manager.camera1.camera.camera_intrinsics = np.load('camera2_calibration_data.npz')
-    manager.camera1.camera.camera_extrinsics = np.load('cam2_external_parameters_2.npz')
+    manager.camera1.camera.camera_extrinsics = np.load('cam2_external_parameters_2.npz')["T_world_camera"]
 
     # Start cameras with processing enabled
     manager.camera1.start()
