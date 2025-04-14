@@ -300,9 +300,12 @@ class Gantry(AbstractSerialDevice):
 
     def goto_position(self, x, y, z):
         """Send GOTO command to move gantry to (x, y, z)."""
-        cmd = f"GOTO {x:.2f} {y:.2f} {z:.2f}\n"
-        self.ser.write(cmd.encode())
-        print(f"SENT: {cmd.strip()}")
+        try:
+            cmd = f"GOTO {x:.2f} {y:.2f} {z:.2f}\n"
+            self.ser.write(cmd.encode())
+            print(f"SENT: {cmd.strip()}")
+        except Exception as e:
+            print(f"Error while sending GOTO command: {e}")
 
     def stop(self):
         if self.ser is not None:
@@ -344,6 +347,28 @@ class Gantry(AbstractSerialDevice):
         """
         self.goto_position(self.target_x, self.target_y, self.target_z)
 
+    def injectA(self):
+        """Send INJECT A command."""
+        try:
+            if self.ser is not None:
+                print("Injecting...")
+                self.ser.write(b"INJECTA\n")
+            else:
+                print("Warning: Serial connection is None, cannot send INJECTA")
+        except Exception as e:
+            print(f"Error while sending INJECTA command: {e}")
+
+    def injectC(self):
+        """Send INJECT command."""
+        try:
+            if self.ser is not None:
+                print("Injecting...")
+                self.ser.write(b"INJECTB\n")
+            else:
+                print("Warning: Serial connection is None, cannot send INJECTB")
+        except Exception as e:
+            print(f"Error while sending INJECTB command: {e}")
+
 class EndEffector(AbstractSerialDevice):
     def __init__(self, port="/dev/ttyACM1", baud=9600, timeout=1.0):
         super().__init__(port=port, baud=baud, timeout=timeout)
@@ -351,9 +376,12 @@ class EndEffector(AbstractSerialDevice):
 
     def goto_position(self, theta, delta):
         """Example command to rotate by two angles."""
-        cmd = f"ROTATE {theta:.2f} {delta:.2f}\n"
-        self.ser.write(cmd.encode())
-        print(f"SENT: {cmd.strip()}")
+        try:
+            cmd = f"ROTATE {theta:.2f} {delta:.2f}\n"
+            self.ser.write(cmd.encode())
+            print(f"SENT: {cmd.strip()}")
+        except Exception as e:
+            print(f"Error while sending ROTATE command: {e}")
 
     def stop(self):
         if self.ser is not None:
@@ -545,6 +573,13 @@ class HardwareManager:
         if self.end_effector:
             self.end_effector.inject()
 
+    def home_all(self):
+        """Home all devices."""
+        if self.gantry:
+            self.gantry.home()
+        if self.end_effector:
+            self.end_effector.home()
+
 if __name__ == "__main__":
     app = QApplication(sys.argv)
     manager = HardwareManager()
@@ -556,57 +591,68 @@ if __name__ == "__main__":
 
     manager.camera1.open_tuner()
 
-    alignment_active = True  # Control flag for X alignment loop
+    alignment_active = False  # Global flag to enable X control during first step
 
-    # Continuous update loop
-    def update_and_control():
-        manager.camera1.update_frame()
-        if alignment_active:
-            manager.blind_x_control()
-        target = manager.camera1.camera.get_center_of_mask()
-        if target:
-            print(f"Camera Y position: {target[1]}")
-        else:
-            print("No target detected")
+    def run_full_automation_sequence():
+        print("\n[Sequence Start] Aligning X, then moving to Y/Z, rotating theta, then injecting.")
 
-    timer = QTimer()
-    timer.timeout.connect(update_and_control)
-    timer.start(200)  # Update every 200 ms
+        sequence_timer = QTimer()
 
-    # Delayed sequence: Y/Z move, theta rotation, inject
-    def run_sequence_after_alignment():
-        global alignment_active
-        alignment_active = False  # Stop X control
-        print("\n[Sequence Start] Holding X, moving to Y/Z, rotating theta, then injecting.")
+        def update_and_control():
+            manager.camera1.update_frame()
+            if alignment_active:
+                manager.blind_x_control()
+            target = manager.camera1.camera.get_center_of_mask()
+            # if target:
+            #     print(f"Live camera Y position: {target[1]}")
+            # else:
+            #     print("No target detected")
 
-        def step1():
+        sequence_timer.timeout.connect(update_and_control)
+        sequence_timer.start(200)
+
+        def step1_align_x():
+            global alignment_active
+            alignment_active = True
+            print("Step 1: Starting X-axis alignment.")
+            QTimer.singleShot(15000, step2_yz_position)  # Align for 15s
+
+        def step2_yz_position():
+            global alignment_active
+            alignment_active = False
+            print("Step 2: Sending Y/Z position.")
             manager.send_yz_position(y=50.0, z=20.0)
-            print("Moving to Y/Z position.")
-            QTimer.singleShot(2000, step2)
+            QTimer.singleShot(2000, step3_theta)
 
-        def step2():
+        def step3_theta():
+            print("Step 3: Sending theta to end effector.")
             manager.send_theta_to_effector(theta=90.0, delta=0.0)
-            print("Theta sent to end effector.")
-            QTimer.singleShot(2000, step3)
+            QTimer.singleShot(2000, step4a_inject_gantry)
 
-        def step3():
+        def step4a_inject_gantry():
+            print("Step 4a: Injecting gantry.")
+            manager.gantry.injectA()
+            QTimer.singleShot(2000, step4b_inject_both)
+
+        def step4b_inject_both():
+            print("Step 4: Injecting.")
             manager.inject_all()
-            print("[Injecting — waiting 1 minute before homing]")
-            QTimer.singleShot(60000, step4)
+            QTimer.singleShot(5000, step4c_retract_sample)
 
-        def step4():
-            manager.gantry.home()
-            print("Gantry homed.")
-            QTimer.singleShot(1000, step5)
+        def step4c_retract_sample():
+            print("Step 4c: Retracting sample.")
+            manager.gantry.injectC()
+            QTimer.singleShot(2000, step5_home)
 
-        def step5():
-            manager.effector.home()
-            print("End effector homed.")
+        def step5_home():
+            print("Step 5: Homing gantry.")
+            manager.home_all()
 
-        step1()
-    
-    # Start sequence after 10s
-    QTimer.singleShot(10000, run_sequence_after_alignment)
+        
+        step1_align_x()
+
+    # Start sequence immediately or on a GUI event
+    QTimer.singleShot(0, run_full_automation_sequence)
 
     # Graceful shutdown on Ctrl+C
     def run_app():
