@@ -96,7 +96,7 @@ class ColorMask(QWidget):
 
         target_found = False
         if contours:
-            min_area = 300
+            min_area = 100
             contours = [cnt for cnt in contours if cv2.contourArea(cnt) > min_area]
 
             largest = self.get_weighted_center_contour(contours, frame.shape)
