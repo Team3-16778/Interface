@@ -27,6 +27,7 @@ class Camera:
         name="Camera",
         use_csi=False,
         sensor_id=0,
+        intrinsics=None,
         extrinsics = None
     ):
         self.color_mask = ColorMask(camera_name=name)
@@ -40,6 +41,7 @@ class Camera:
         self._is_capturing = False
         self.cap = None
 
+        self.camera_intrinsics = intrinsics
         self.camera_extrinsics = extrinsics
 
     def start_cap(self):
@@ -142,6 +144,39 @@ class Camera:
 
     def open_tuner(self):
         self.color_mask.open_tuner()
+    
+    def get_world_3d(self, u, v, Zc = 0.5): # Zc is the distance from the camera to the target(default is a random value)
+        """
+        Calculate the 3D coordinates of the target in the world frame
+        Input:
+            u: x coordinate of the target in the image
+            v: y coordinate of the target in the image
+            Zc: depth of the target in the camera frame (distance from the camera to the target)
+        Output:
+            world_point: 3D coordinates of the target in the world frame
+        """
+        # Get the parameters we need: focal length, principal point, and rotation vector and translation vector
+        camera_matrix = self.camera_intrinsics["camera_matrix"]
+        fx = camera_matrix[0, 0]
+        fy = camera_matrix[1, 1]
+        cx = camera_matrix[0, 2]
+        cy = camera_matrix[1, 2]
+        Rotation_matrix = self.camera_extrinsics[0:3, 0:3]
+        Translation_vector = self.camera_extrinsics[0:3, 3].reshape(3, 1)
+
+        # 4. Compute the 3D coordinates of the target in the camera frame
+        Xc = (u - cx) * Zc / fx
+        Yc = (v - cy) * Zc / fy
+        camera_point = np.array([[Xc], [Yc], [Zc]])
+
+        # 5. Compute the 3D coordinates of the target in the world frame
+        # Method 1: external parameters is T_world_camera
+        world_point = Rotation_matrix @ camera_point + Translation_vector
+
+        # Method 2: external parameters is T_camera_world
+        # world_point = Rotation_matrix.T @ (camera_point - Translation_vector)
+
+        return world_point.flatten()
 
 class CameraHandler(QObject):
     frame_ready = Signal(QImage)
@@ -586,6 +621,10 @@ class HardwareManager:
 if __name__ == "__main__":
     app = QApplication(sys.argv)
     manager = HardwareManager()
+
+    # import the camera parameters
+    manager.camera1.camera.camera_intrinsics = np.load('camera2_calibration_data.npz')
+    manager.camera1.camera.camera_extrinsics = np.load('cam2_external_parameters_2.npz')
     
     # Start cameras with processing enabled
     manager.camera1.start()
@@ -606,6 +645,9 @@ if __name__ == "__main__":
             if alignment_active:
                 manager.blind_x_control()
             target = manager.camera1.camera.get_center_of_mask()
+            u, v = target
+            world_3d = manager.camera1.camera.get_world_3d(u, v)
+            print(world_3d)
             # if target:
             #     print(f"Live camera Y position: {target[1]}")
             # else:
