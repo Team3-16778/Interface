@@ -472,14 +472,35 @@ class HardwareManager:
             print(f"End Effector init failed: {e}")
 
     def connect_cameras(self):
-        """Initialize cameras with basic error handling"""
+        """Initialize cameras with calibration only for CSI."""
         try:
             is_mac = platform.system() == "Darwin"
-            self.camera1 = CameraHandler(0, "Camera 1", use_csi=not is_mac, sensor_id=0)
-            self.camera2 = CameraHandler(1, "Camera 2", use_csi=not is_mac, sensor_id=1)
+            use_csi = not is_mac
+
+            # Load calibration data only for CSI cameras
+            intrinsics = None
+            extrinsics = None
+            if use_csi:
+                try:
+                    intrinsics = np.load("camera2_calibration_data.npz")
+                    extrinsics = np.load("cam2_external_parameters_2.npz")["T_world_camera"]
+                    print("[Camera] Loaded calibration data.")
+                except Exception as e:
+                    print(f"[Camera] Failed to load calibration data: {e}")
+
+            self.camera1 = CameraHandler(0, "Camera 1", use_csi=use_csi, sensor_id=0)
+            self.camera2 = CameraHandler(1, "Camera 2", use_csi=use_csi, sensor_id=1)
+
+            # Set calibration after camera handler init
+            if use_csi:
+                self.camera1.camera.camera_intrinsics = intrinsics
+                self.camera1.camera.camera_extrinsics = extrinsics
+                self.camera2.camera.camera_intrinsics = intrinsics
+                self.camera2.camera.camera_extrinsics = extrinsics
+
             return True
         except Exception as e:
-            print(f"Camera init failed: {e}")
+            print(f"[Camera] Init failed: {e}")
             return False
     
     def close_all(self):
@@ -621,11 +642,7 @@ class HardwareManager:
 if __name__ == "__main__":
     app = QApplication(sys.argv)
     manager = HardwareManager()
-
-    # Load calibration files
-    manager.camera1.camera.camera_intrinsics = np.load('camera2_calibration_data.npz')
-    manager.camera1.camera.camera_extrinsics = np.load('cam2_external_parameters_2.npz')["T_world_camera"]
-
+    
     # Start cameras with processing enabled
     manager.camera1.start()
     manager.camera1.camera.processing_active = True
