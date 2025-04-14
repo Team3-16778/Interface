@@ -143,54 +143,72 @@ class ColorMask(QWidget):
         if self.display_img is None or self.current_frame is None:
             return
 
+        # Get click position in display image coordinates
         x_disp = int(event.position().x())
         y_disp = int(event.position().y())
 
+        # Get original frame dimensions
         h_orig, w_orig = self.current_frame.shape[:2]
-        panel_width = self.display_img.shape[1] // 3
-        if x_disp > panel_width:
+        
+        # Calculate dimensions of each panel in the display
+        display_height, display_width = self.display_img.shape[:2]
+        panel_width = display_width // 3
+        
+        # Only process clicks in the left panel (original image)
+        if x_disp >= panel_width:
             return
 
-        x_ratio = w_orig / panel_width
-        y_ratio = h_orig / self.display_img.shape[0]
-        x = int(x_disp * x_ratio)
-        y = int(y_disp * y_ratio)
+        # Calculate scaling factors
+        x_scale = w_orig / panel_width
+        y_scale = h_orig / display_height
+        
+        # Convert display coordinates to original frame coordinates
+        x = int(x_disp * x_scale)
+        y = int(y_disp * y_scale)
 
+        # Ensure coordinates are within bounds
+        x = max(0, min(x, w_orig - 1))
+        y = max(0, min(y, h_orig - 1))
+
+        # Get HSV color at clicked position
         hsv = cv2.cvtColor(self.current_frame, cv2.COLOR_BGR2HSV)
-
+        
+        # Sample a small area around the click
         radius = 2
         x1, x2 = max(0, x - radius), min(w_orig, x + radius + 1)
         y1, y2 = max(0, y - radius), min(h_orig, y + radius + 1)
         patch = hsv[y1:y2, x1:x2]
+        
+        if patch.size == 0:
+            return
+            
         median = np.median(patch.reshape(-1, 3), axis=0)
 
+        # Set HSV bounds based on sampled color
         margin = 20
         low = np.clip(median - margin, [0, 0, 0], [179, 255, 255]).astype(int)
         high = np.clip(median + margin, [0, 0, 0], [179, 255, 255]).astype(int)
 
+        # Handle hue wrap-around (red colors)
         if low[0] <= high[0]:
+            # Normal case (single range)
             self.sliders["Low H1"].setValue(int(low[0]))
-            self.sliders["Low S1"].setValue(int(low[1]))
-            self.sliders["Low V1"].setValue(int(low[2]))
             self.sliders["High H1"].setValue(int(high[0]))
-            self.sliders["High S1"].setValue(int(high[1]))
-            self.sliders["High V1"].setValue(int(high[2]))
             self.sliders["Low H2"].setValue(0)
             self.sliders["High H2"].setValue(0)
         else:
+            # Red wrap-around case (two ranges)
             self.sliders["Low H1"].setValue(0)
             self.sliders["High H1"].setValue(int(high[0]))
             self.sliders["Low H2"].setValue(int(low[0]))
             self.sliders["High H2"].setValue(179)
 
-        self.sliders["Low S1"].setValue(int(low[1]))
-        self.sliders["Low V1"].setValue(int(low[2]))
-        self.sliders["High S1"].setValue(int(high[1]))
-        self.sliders["High V1"].setValue(int(high[2]))
-        self.sliders["Low S2"].setValue(int(low[1]))
-        self.sliders["Low V2"].setValue(int(low[2]))
-        self.sliders["High S2"].setValue(int(high[1]))
-        self.sliders["High V2"].setValue(int(high[2]))
+        # Set S and V values for both ranges
+        for suffix in ['1', '2']:
+            self.sliders[f"Low S{suffix}"].setValue(int(low[1]))
+            self.sliders[f"Low V{suffix}"].setValue(int(low[2]))
+            self.sliders[f"High S{suffix}"].setValue(int(high[1]))
+            self.sliders[f"High V{suffix}"].setValue(int(high[2]))
 
         self.update_frame()
 

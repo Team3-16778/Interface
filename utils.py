@@ -521,7 +521,7 @@ class HardwareManager:
 
         # Restart camera module
         import os
-        os.system('sudo systemctl restart nvargus-daemon')
+        os.system('systemctl restart nvargus-daemon')
         time.sleep(2.0)
         
         print("Shutdown complete")
