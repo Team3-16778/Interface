@@ -671,7 +671,7 @@ if __name__ == "__main__":
 
         def step3_theta():
             print("Step 3: Sending theta to end effector.")
-            manager.send_theta_to_effector(theta=90.0, delta=0.0)
+            manager.send_theta_to_effector(theta=100.0, delta=0.0)
             QTimer.singleShot(2000, step4a_inject_gantry)
 
         def step4a_inject_gantry():
