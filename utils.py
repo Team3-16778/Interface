@@ -27,6 +27,7 @@ class Camera:
         name="Camera",
         use_csi=False,
         sensor_id=0,
+        extrinsics = None
     ):
         self.color_mask = ColorMask(camera_name=name)
         self.latest_frame = None
@@ -38,6 +39,8 @@ class Camera:
         self.processing_active = False  # New flag for selective processing
         self._is_capturing = False
         self.cap = None
+
+        self.camera_extrinsics = extrinsics
 
     def start_cap(self):
         if self._is_capturing:

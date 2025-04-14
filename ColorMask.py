@@ -70,23 +70,36 @@ class ColorMask(QWidget):
 
     def process_frame(self, frame):
         blurred = cv2.GaussianBlur(frame, (7, 7), 0)
-        hsv = cv2.cvtColor(blurred, cv2.COLOR_BGR2HSV)
+        lab = cv2.cvtColor(blurred, cv2.COLOR_BGR2LAB)
+        l, a, b = cv2.split(lab)
+        clahe = cv2.createCLAHE(clipLimit=2.0, tileGridSize=(8, 8))
+        l = clahe.apply(l)
+        lab = cv2.merge((l, a, b))
+        enhanced = cv2.cvtColor(lab, cv2.COLOR_LAB2BGR)
+        hsv = cv2.cvtColor(enhanced, cv2.COLOR_BGR2HSV)
+
+
         l1, u1, l2, u2 = self.get_hsv_bounds()
 
         mask1 = cv2.inRange(hsv, l1, u1)
         mask2 = cv2.inRange(hsv, l2, u2)
         mask = cv2.bitwise_or(mask1, mask2)
 
-        kernel = np.ones((5, 5), np.uint8)
+        kernel = np.ones((7, 7), np.uint8)
         mask = cv2.morphologyEx(mask, cv2.MORPH_OPEN, kernel)
         mask = cv2.morphologyEx(mask, cv2.MORPH_CLOSE, kernel)
+        mask = cv2.dilate(mask, kernel, iterations=1)
+
 
         contours, _ = cv2.findContours(mask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
         overlay = frame.copy()
 
         target_found = False
         if contours:
-            largest = max(contours, key=cv2.contourArea)
+            min_area = 300
+            contours = [cnt for cnt in contours if cv2.contourArea(cnt) > min_area]
+
+            largest = self.get_weighted_center_contour(contours, frame.shape)
             x, y, w, h = cv2.boundingRect(largest)
             cx, cy = x + w // 2, y + h // 2
             cv2.rectangle(overlay, (x, y), (x + w, y + h), (0, 255, 0), 20)
@@ -94,6 +107,20 @@ class ColorMask(QWidget):
             target_found = True
 
         return mask, overlay, target_found
+    
+    def get_weighted_center_contour(self, contours, image_shape):
+        h, w = image_shape[:2]
+        center = np.array([w / 2, h / 2])
+
+        def score(contour):
+            x, y, bw, bh = cv2.boundingRect(contour)
+            cx, cy = x + bw // 2, y + bh // 2
+            dist = np.linalg.norm(center - np.array([cx, cy]))
+            area = cv2.contourArea(contour)
+            return area - 2.0 * dist  # weight: prioritize large, centered contours
+
+        return max(contours, key=score)
+
 
     def update_frame(self):
         if self.current_frame is None:
