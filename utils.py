@@ -145,7 +145,7 @@ class Camera:
     def open_tuner(self):
         self.color_mask.open_tuner()
     
-    def get_world_3d(self, u, v, Zc = 0.5): # Zc is the distance from the camera to the target(default is a random value)
+    def get_world_3d(self, u, v, Zc = 0.6731): # Zc is the distance from the camera to the target(default is Acotag Distance~0.6731)
         """
         Calculate the 3D coordinates of the target in the world frame
         Input:
@@ -624,7 +624,7 @@ if __name__ == "__main__":
 
     # Load calibration files
     manager.camera1.camera.camera_intrinsics = np.load('camera2_calibration_data.npz')
-    manager.camera1.camera.camera_extrinsics = np.load('cam2_external_parameters_2.npz')["T_world_camera"]
+    manager.camera1.camera.camera_extrinsics = np.load('cam2_external_parameters_0414.npz')["T_world_camera"]
 
     # Start cameras with processing enabled
     manager.camera1.start()
