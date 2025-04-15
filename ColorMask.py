@@ -1,6 +1,7 @@
 import sys
 import cv2
 import numpy as np
+import os
 from PySide6.QtWidgets import (
     QApplication, QWidget, QLabel, QVBoxLayout, QGridLayout,
     QSlider, QSpinBox, QPushButton, QHBoxLayout
@@ -23,6 +24,9 @@ class ColorMask(QWidget):
         self.setWindowTitle(f"Color Mask Tuner - {camera_name}")
         self.setGeometry(100, 100, 1000, 600)
 
+        self.camera_name = camera_name
+        self.save_path = f"{camera_name}_hsv_params.npy"
+
         self.label = QLabel()
         self.label.setMouseTracking(True)
         self.label.mousePressEvent = self.pick_color
@@ -32,6 +36,7 @@ class ColorMask(QWidget):
         self.sliders = {}
 
         self.init_ui()
+        self.load_params()
 
         # Timer just for refreshing (e.g., if you want live updates)
         self.timer = QTimer()
@@ -39,11 +44,6 @@ class ColorMask(QWidget):
         self.timer.start(30)
 
     def init_ui(self):
-        """
-        Build a layout with:
-         - an image display on top
-         - two columns of HSV controls (each with Low/High H, S, V).
-        """
         layout = QVBoxLayout()
         layout.addWidget(self.label)
 
@@ -65,7 +65,6 @@ class ColorMask(QWidget):
                 spn.setRange(0, 255 if 'S' in name or 'V' in name else 179)
                 spn.setValue(val)
 
-                # Keep them in sync
                 sld.valueChanged.connect(spn.setValue)
                 spn.valueChanged.connect(sld.setValue)
                 sld.valueChanged.connect(self.update_frame)
@@ -77,7 +76,29 @@ class ColorMask(QWidget):
                 grid.addWidget(spn, row, col * 3 + 2)
 
         layout.addLayout(grid)
+
+        # Save button
+        btn_layout = QHBoxLayout()
+        save_btn = QPushButton("Save Parameters")
+        save_btn.clicked.connect(self.save_params)
+        btn_layout.addWidget(save_btn)
+        layout.addLayout(btn_layout)
+
         self.setLayout(layout)
+
+    def save_params(self):
+        values = {k: v.value() for k, v in self.sliders.items()}
+        np.save(self.save_path, values)
+        print(f"[INFO] Saved HSV params to {self.save_path}")
+
+    def load_params(self):
+        if os.path.exists(self.save_path):
+            values = np.load(self.save_path, allow_pickle=True).item()
+            for k, v in values.items():
+                if k in self.sliders:
+                    self.sliders[k].setValue(v)
+            print(f"[INFO] Loaded HSV params from {self.save_path}")
+
 
     def set_frame(self, frame):
         """Receive a new frame from your camera to process and display."""
