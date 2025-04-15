@@ -190,6 +190,9 @@ class ColorMask(QWidget):
                 target_found = True
 
         return mask, overlay, target_found
+    
+    def apply(self, frame):
+        return self.process_frame(frame)
 
     def update_frame(self):
         """
