@@ -478,8 +478,8 @@ class HardwareManager:
             is_windows = platform.system() == "Windows"
             is_jetson = not is_mac and not is_windows  # Assume Jetson if not Mac or Windows
 
-            self.camera1 = CameraHandler(0, "Camera_1", use_csi=is_jetson, sensor_id=0)
-            self.camera2 = CameraHandler(1, "Camera_2", use_csi=is_jetson, sensor_id=1)
+            self.camera1 = CameraHandler(0, "Camera 1", use_csi=is_jetson, sensor_id=0)
+            self.camera2 = CameraHandler(1, "Camera 2", use_csi=is_jetson, sensor_id=1)
             return True
         except Exception as e:
             print(f"Camera init failed: {e}")
