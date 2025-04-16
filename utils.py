@@ -653,7 +653,6 @@ if __name__ == "__main__":
     manager.camera1.camera.processing_active = True
     manager.camera1.detection_active = True
     manager.camera1.open_tuner()
-    manager.camera1.update_frame()
 
     manager.camera2.start()
     manager.camera2.camera.processing_active = True
@@ -662,7 +661,8 @@ if __name__ == "__main__":
     alignment_active = False  # Global flag to enable X control during alignment
 
 
-    time.sleep(10)
+    time.sleep(5)
+
 
     
     # Global camera update + control loop
@@ -704,7 +704,32 @@ if __name__ == "__main__":
             global alignment_active
             alignment_active = True
             print("Step 1: Starting X-axis alignment.")
-            QTimer.singleShot(25000, step2_yz_position)  # Align for 25s
+            start_time = time.time()
+            check_alignment_progress(start_time)
+
+        def check_alignment_progress(start_time):
+            global alignment_active
+            target = manager.camera1.camera.get_center_of_mask()
+            timeout = 25  # seconds
+
+            if target and manager.camera1.camera.target_found:
+                _, target_y = target
+                center_y = 240
+                if abs(target_y - center_y) < 10:
+                    print("Target aligned — moving to next step.")
+                    alignment_active = False
+                    step2_yz_position()
+                    return
+
+            if time.time() - start_time > timeout:
+                print("Alignment timeout — moving to next step anyway.")
+                alignment_active = False
+                step2_yz_position()
+                return
+
+            # Retry after short delay
+            QTimer.singleShot(300, lambda: check_alignment_progress(start_time))
+
 
         def step2_yz_position():
             print("Step 2: Sending Y/Z position phase 1.")
@@ -746,7 +771,7 @@ if __name__ == "__main__":
 
             print("Step 2: Sending Y/Z position.")
             manager.send_yz_position(y=gantry_des_y, z=gantry_des_z)
-            QTimer.singleShot(30000, step3_theta)
+            QTimer.singleShot(10000, step3_theta)
 
         def step3_theta():
             print("Step 3: Sending theta to end effector.")
