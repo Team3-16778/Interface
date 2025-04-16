@@ -632,16 +632,15 @@ class HardwareManager:
 if __name__ == "__main__":
     app = QApplication(sys.argv)
     manager = HardwareManager()
-    # Print ports on both devices
     print("Gantry Port:", manager.gantry.port)
     print("End Effector Port:", manager.end_effector.port)
+
     manager.home_all()
-    time.sleep(35)  # Allow time for homing
+    time.sleep(35)
     print("Homing complete. Starting camera processing...")
 
-    manager.gantry.goto_position(230, 260, 140)  # Move gantry to preset position for X calibration
-    manager.set_blind_vals(230, 260, 140)  # Set blind control values
-
+    manager.gantry.goto_position(230, 260, 140)
+    manager.set_blind_vals(230, 260, 140)
 
     # Load calibration files
     manager.camera1.camera.camera_intrinsics = np.load('camera2_calibration_data.npz')
@@ -649,7 +648,7 @@ if __name__ == "__main__":
     manager.camera2.camera.camera_intrinsics = np.load('camera2_calibration_data.npz')
     manager.camera2.camera.camera_extrinsics = np.load('cam2_external_parameters_0415.npz')["T_world_camera"]
 
-    # Start cameras with processing enabled
+    # Start cameras
     manager.camera1.start()
     manager.camera1.camera.processing_active = True
     manager.camera1.detection_active = True
@@ -659,54 +658,34 @@ if __name__ == "__main__":
     manager.camera2.camera.processing_active = True
     manager.camera2.detection_active = True
 
-    alignment_active = False  # Global flag to enable X control during alignment
+    print("Beginning alignment loop...")
+    alignment_active = True
+    start_time = time.time()
+    center_y = 240
+    timeout = 25
+
+    while True:
+        manager.camera1.update_frame()
+        if manager.camera1.camera.target_found:
+            _, target_y = manager.camera1.camera.get_center_of_mask()
+            if abs(target_y - center_y) < 10:
+                print("Target aligned — exiting alignment loop.")
+                break
+
+        if time.time() - start_time > timeout:
+            print("Alignment timeout — proceeding to next step.")
+            break
+
+        manager.blind_x_control()
+        time.sleep(0.5)  # Prevent serial flooding
 
 
     time.sleep(5)
 
 
-    
-    # Global camera update + control loop
-    TARGET_UPDATE_INTERVAL = 0.5  # seconds
-    last_target_time = 0.0
-
-    last_x_control_time = 0.0
-    X_CONTROL_INTERVAL = 0.5  # seconds
-
-    def update_and_control():
-        global last_target_time, last_x_control_time
-        now = time.time()
-
-        manager.camera1.update_frame()
-
-        if alignment_active and (now - last_x_control_time) >= X_CONTROL_INTERVAL:
-            manager.blind_x_control()
-            last_x_control_time = now
-
-        if (now - last_target_time) >= TARGET_UPDATE_INTERVAL:
-            target = manager.camera1.camera.get_center_of_mask()
-            if target:
-                u, v = target
-                world_3d = manager.camera1.camera.get_world_3d(u, v)
-                print("3D position:", world_3d)
-            else:
-                print("No target detected")
-            last_target_time = now
-
-    timer = QTimer()
-    timer.timeout.connect(update_and_control)
-    timer.start(500)
-
     # Main automation sequence
     def run_full_automation_sequence():
-        print("\n[Sequence Start] Aligning X, then moving to Y/Z, rotating theta, then injecting.")
-
-        def step1_align_x():
-            global alignment_active
-            alignment_active = True
-            print("Step 1: Starting X-axis alignment.")
-            start_time = time.time()
-            check_alignment_progress(start_time)
+        print("\n[Sequence Start] Finished aligning X, then moving to Y/Z, rotating theta, then injecting.")
 
         def check_alignment_progress(start_time):
             global alignment_active
@@ -799,7 +778,7 @@ if __name__ == "__main__":
             print("Step 5: Homing gantry and end effector.")
             manager.home_all()
 
-        step1_align_x()
+        step2_yz_position()
 
     # Start sequence after app init
     QTimer.singleShot(0, run_full_automation_sequence)
