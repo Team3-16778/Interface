@@ -668,17 +668,19 @@ if __name__ == "__main__":
     TARGET_UPDATE_INTERVAL = 0.5  # seconds
     last_target_time = 0.0
 
+    last_x_control_time = 0.0
+    X_CONTROL_INTERVAL = 0.5  # seconds
+
     def update_and_control():
-        # Always update the frame
+        global last_target_time, last_x_control_time
+        now = time.time()
+
         manager.camera1.update_frame()
 
-        # Blind X control if alignment is active
-        if alignment_active:
+        if alignment_active and (now - last_x_control_time) >= X_CONTROL_INTERVAL:
             manager.blind_x_control()
+            last_x_control_time = now
 
-        # Check if enough time has passed to retrieve/print a target update
-        global last_target_time
-        now = time.time()
         if (now - last_target_time) >= TARGET_UPDATE_INTERVAL:
             target = manager.camera1.camera.get_center_of_mask()
             if target:
@@ -704,6 +706,7 @@ if __name__ == "__main__":
             QTimer.singleShot(25000, step2_yz_position)  # Align for 25s
 
         def step2_yz_position():
+            print("Step 2: Sending Y/Z position phase 1.")
             global alignment_active
             alignment_active = False
 
