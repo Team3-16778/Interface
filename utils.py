@@ -401,11 +401,11 @@ class Gantry(AbstractSerialDevice):
         try:
             if self.ser is not None:
                 print("Injecting...")
-                self.ser.write(b"INJECTB\n")
+                self.ser.write(b"INJECTC\n")
             else:
-                print("Warning: Serial connection is None, cannot send INJECTB")
+                print("Warning: Serial connection is None, cannot send INJECTC")
         except Exception as e:
-            print(f"Error while sending INJECTB command: {e}")
+            print(f"Error while sending INJECTC command: {e}")
 
 class EndEffector(AbstractSerialDevice):
     def __init__(self, port="/dev/ttyACM1", baud=9600, timeout=1.0):
@@ -663,7 +663,7 @@ if __name__ == "__main__":
             global alignment_active
             alignment_active = True
             print("Step 1: Starting X-axis alignment.")
-            QTimer.singleShot(30000, step2_yz_position)  # Align for 30s
+            QTimer.singleShot(60000, step2_yz_position)  # Align for 60s
 
         def step2_yz_position():
             global alignment_active
@@ -674,7 +674,7 @@ if __name__ == "__main__":
 
         def step3_theta():
             print("Step 3: Sending theta to end effector.")
-            manager.send_theta_to_effector(theta=100.0, delta=0.0)
+            manager.send_theta_to_effector(theta=120.0, delta=0.0)
             QTimer.singleShot(10000, step4a_inject_gantry)
 
         def step4a_inject_gantry():
