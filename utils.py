@@ -740,13 +740,6 @@ if __name__ == "__main__":
                 manager.send_yz_position(y=int(gantry_des_y), z=int(gantry_des_z))
                 QTimer.singleShot(5000, lambda: send_yz_repeat(count + 1))
 
-            print(f"Step 2: Sending Y/Z position.")
-        
-            for i in range(3):
-                time.sleep(5)
-                manager.send_yz_position(y=int(gantry_des_y), z=int(gantry_des_z))
-       
-            QTimer.singleShot(10000, step3_theta)
 
         def step3_theta():
             print("Step 3: Sending theta to end effector.")
