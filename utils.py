@@ -727,7 +727,7 @@ if __name__ == "__main__":
             
             # gantry_des_y, gantry_des_z = calculate_yz()
 
-            gantry_des_y = 152
+            gantry_des_y = 80
             gantry_des_z = 223
             print("The desired Y and Z positions for gantry are: {}, {}".format(gantry_des_y, gantry_des_z))
 
