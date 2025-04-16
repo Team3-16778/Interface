@@ -726,7 +726,7 @@ if __name__ == "__main__":
             # gantry_des_y, gantry_des_z = calculate_yz()
 
             gantry_des_y = 0.4826 - 172.8/1000 + 275.72*np.sin(120*np.pi/180) + 100.0*np.cos(120*np.pi/180)
-            gantry_des_z = -0.4492625 + 0.1778 - 275.72*np.cos(120*np.pi/180) + 100.0*np.sin(120*np.pi/180)
+            gantry_des_z = 223
             print("The desired Y and Z positions for gantry are: {}, {}".format(gantry_des_y, gantry_des_z))
 
             manager.send_yz_position(y=int(gantry_des_y), z=int(gantry_des_z))
@@ -752,7 +752,7 @@ if __name__ == "__main__":
         def step4c_retract_sample():
             print("Step 4c: Retracting sample.")
             manager.gantry.injectC()
-            QTimer.singleShot(10000, step5_home)
+            QTimer.singleShot(30000, step5_home)
 
         def step5_home():
             print("Step 5: Homing gantry and end effector.")
