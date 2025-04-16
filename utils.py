@@ -653,6 +653,7 @@ if __name__ == "__main__":
     manager.camera1.camera.processing_active = True
     manager.camera1.detection_active = True
     manager.camera1.open_tuner()
+    manager.camera1.gui_active = True
 
     manager.camera2.start()
     manager.camera2.camera.processing_active = True
@@ -725,7 +726,7 @@ if __name__ == "__main__":
             
             # gantry_des_y, gantry_des_z = calculate_yz()
 
-            gantry_des_y = 0.4826 - 172.8/1000 + 275.72*np.sin(120*np.pi/180) + 100.0*np.cos(120*np.pi/180)
+            gantry_des_y = 152
             gantry_des_z = 223
             print("The desired Y and Z positions for gantry are: {}, {}".format(gantry_des_y, gantry_des_z))
 
