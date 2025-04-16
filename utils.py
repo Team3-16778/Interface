@@ -580,7 +580,7 @@ class HardwareManager:
             center_y = 240
             step_mm = 2.0
 
-            if abs(target_y - center_y) < 5:
+            if abs(target_y - center_y) < 10:
                 print("Target centered.")
                 return
             elif target_y > center_y:
