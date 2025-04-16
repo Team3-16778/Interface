@@ -731,12 +731,12 @@ if __name__ == "__main__":
             gantry_des_z = 223
             print("The desired Y and Z positions for gantry are: {}, {}".format(gantry_des_y, gantry_des_z))
 
-
-            for i in range(5):
+            print(f"Step 2: Sending Y/Z position.")
+        
+            for i in range(3):
+                time.sleep(5)
                 manager.send_yz_position(y=int(gantry_des_y), z=int(gantry_des_z))
-                print(f"Step 2_{i}: Sending Y/Z position.")
        
-
             QTimer.singleShot(10000, step3_theta)
 
         def step3_theta():
