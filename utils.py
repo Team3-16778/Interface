@@ -635,7 +635,7 @@ if __name__ == "__main__":
     print("Gantry Port:", manager.gantry.port)
     print("End Effector Port:", manager.end_effector.port)
     manager.home_all()
-    time.sleep(60)  # Allow time for homing
+    time.sleep(45)  # Allow time for homing
     print("Homing complete. Starting camera processing...")
 
     manager.gantry.goto_position(230, 260, 140)  # Move gantry to preset position for X calibration
