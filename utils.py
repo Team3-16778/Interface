@@ -668,7 +668,7 @@ if __name__ == "__main__":
         manager.camera1.update_frame()
         if manager.camera1.camera.target_found:
             _, target_y = manager.camera1.camera.get_center_of_mask()
-            if abs(target_y - center_y) < 10:
+            if abs(target_y - center_y) < 15:
                 print("Target aligned — exiting alignment loop.")
                 break
 
@@ -686,30 +686,6 @@ if __name__ == "__main__":
     # Main automation sequence
     def run_full_automation_sequence():
         print("\n[Sequence Start] Finished aligning X, then moving to Y/Z, rotating theta, then injecting.")
-
-        def check_alignment_progress(start_time):
-            global alignment_active
-            target = manager.camera1.camera.get_center_of_mask()
-            timeout = 25  # seconds
-
-            if target and manager.camera1.camera.target_found:
-                _, target_y = target
-                center_y = 240
-                if abs(target_y - center_y) < 10:
-                    print("Target aligned — moving to next step.")
-                    alignment_active = False
-                    step2_yz_position()
-                    return
-
-            if time.time() - start_time > timeout:
-                print("Alignment timeout — moving to next step anyway.")
-                alignment_active = False
-                step2_yz_position()
-                return
-
-            # Retry after short delay
-            QTimer.singleShot(300, lambda: check_alignment_progress(start_time))
-
 
         def step2_yz_position():
             print("Step 2: Sending Y/Z position phase 1.")
@@ -747,9 +723,13 @@ if __name__ == "__main__":
                 print("The desired Y and Z positions for gantry are: {}, {}".format(gantry_des_y, gantry_des_z))
                 return gantry_des_y, gantry_des_z
             
-            gantry_des_y, gantry_des_z = calculate_yz()
+            # gantry_des_y, gantry_des_z = calculate_yz()
 
-            manager.send_yz_position(y=gantry_des_y, z=gantry_des_z)
+            gantry_des_y = 0.4826 - 172.8/1000 + 275.72*np.sin(120*np.pi/180) + 100.0*np.cos(120*np.pi/180)
+            gantry_des_z = -0.4492625 + 0.1778 - 275.72*np.cos(120*np.pi/180) + 100.0*np.sin(120*np.pi/180)
+            print("The desired Y and Z positions for gantry are: {}, {}".format(gantry_des_y, gantry_des_z))
+
+            manager.send_yz_position(y=int(gantry_des_y), z=int(gantry_des_z))
             print("Step 2: Sending Y/Z position.")
 
             QTimer.singleShot(10000, step3_theta)
