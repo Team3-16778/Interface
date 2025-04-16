@@ -627,6 +627,7 @@ class HardwareManager:
             self.gantry.home()
         if self.end_effector:
             self.end_effector.home()
+            self.end_effector.goto_position(0, 0)  # Reset angles to zero because HOME not implemented
 
 if __name__ == "__main__":
     app = QApplication(sys.argv)
@@ -771,7 +772,7 @@ if __name__ == "__main__":
 
             manager.send_yz_position(y=gantry_des_y, z=gantry_des_z)
             print("Step 2: Sending Y/Z position.")
-            
+
             QTimer.singleShot(10000, step3_theta)
 
         def step3_theta():
