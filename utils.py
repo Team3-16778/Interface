@@ -636,10 +636,12 @@ if __name__ == "__main__":
     print("Gantry Port:", manager.gantry.port)
     print("End Effector Port:", manager.end_effector.port)
 
+    # Home devices
     manager.home_all()
     time.sleep(35)
     print("Homing complete. Starting camera processing...")
 
+    # Move to X start and set blind values
     manager.gantry.goto_position(230, 260, 140)
     manager.set_blind_vals(230, 260, 140)
 
@@ -649,17 +651,17 @@ if __name__ == "__main__":
     manager.camera2.camera.camera_intrinsics = np.load('camera2_calibration_data.npz')
     manager.camera2.camera.camera_extrinsics = np.load('cam2_external_parameters_0415.npz')["T_world_camera"]
 
-    # Start cameras
+    # Start cameras and processing
     manager.camera1.start()
     manager.camera1.camera.processing_active = True
     manager.camera1.detection_active = True
-    # manager.camera1.open_tuner()
     manager.camera1.gui_active = True
 
     manager.camera2.start()
     manager.camera2.camera.processing_active = True
     manager.camera2.detection_active = True
 
+    # Alignment loop using time.sleep
     print("Beginning alignment loop...")
     alignment_active = True
     start_time = time.time()
@@ -681,110 +683,40 @@ if __name__ == "__main__":
         manager.blind_x_control()
         time.sleep(0.5)  # Prevent serial flooding
 
+    time.sleep(5)  # Hold position before moving to Y/Z
 
+    # STEP 2: Move to Y/Z
+    print("Step 2: Sending Y/Z position phase 1.")
+    alignment_active = False
+    gantry_des_y = 80
+    gantry_des_z = 180
+    print(f"The desired Y and Z positions for gantry are: {gantry_des_y}, {gantry_des_z}")
+    manager.send_yz_position(y=int(gantry_des_y), z=int(gantry_des_z))
+    time.sleep(10)
+
+    # STEP 3: Send theta
+    print("Step 3: Sending theta to end effector.")
+    manager.send_theta_to_effector(theta=120.0, delta=0.0)
+    time.sleep(10)
+
+    # STEP 4a: Inject gantry
+    print("Step 4a: Injecting gantry.")
+    manager.gantry.injectA()
+    time.sleep(10)
+
+    # STEP 4b: Inject both
+    print("Step 4b: Injecting both.")
+    manager.inject_all()
+    time.sleep(10)
+
+    # STEP 4c: Retract
+    print("Step 4c: Retracting sample.")
+    manager.gantry.injectC()
+    time.sleep(30)
+
+    # STEP 5: Home
+    print("Step 5: Homing gantry and end effector.")
+    manager.home_all()
     time.sleep(5)
 
-
-    # Main automation sequence
-    def run_full_automation_sequence():
-        print("\n[Sequence Start] Finished aligning X, then moving to Y/Z, rotating theta, then injecting.")
-
-        def step2_yz_position():
-            print("Step 2: Sending Y/Z position phase 1.")
-            global alignment_active
-            alignment_active = False
-
-            def calculate_yz():
-                # # Get X position from gantry
-                # dis_x = manager.gantry.get_position()[0]
-                # offset_x = 50 #mm, ~2 inch(from camera to gantry x zero)
-                # dis_x = dis_x + offset_x
-                # target = manager.camera2.camera.get_center_of_mask()
-                target = None
-                if target:
-                    u, v = target
-                    # calculate 3D position of the target in world frame
-                    target_y, target_z, _ = manager.camera2.camera.get_world_3d(u, v, dis_x)
-                else: # if no target detected (go to backup position: y is at the center of the camera2)
-                    print("Target not detected, using backup position.")
-                    target_y = 0.4826 - 172.8/1000 # preset 0.4826m(19 inches) from gantry y zero
-                    target_z = -0.4492625 + 0.1778 # preset 0.1778m(7 inches): target from ground(-0.4492625m in world calculation)
-
-                L_ext = 275.72 #mm, from end effector rotation center to external pin
-                ET = L_ext + 30.0 + 100.0 # preset 100mm from pin to external pin to target center, 30mm for internal pin
-                theta = 120*np.pi/180 # preset theta for end effector
-
-                gantry_offset_y = 172.8 #mm, 11-4 inch (-5mm for safety)
-                target_y = target_y*1000 + gantry_offset_y
-                gantry_des_y = target_y - ET*np.sin(theta)
-
-                gantry_offset_z = 7.7 #mm, 2-1.5 inch (-5mm for safety)
-                target_z = - target_z*1000 + gantry_offset_z
-                gantry_des_z = target_z + ET*np.cos(theta)
-
-                print("The desired Y and Z positions for gantry are: {}, {}".format(gantry_des_y, gantry_des_z))
-                return gantry_des_y, gantry_des_z
-            
-            # gantry_des_y, gantry_des_z = calculate_yz()
-
-            gantry_des_y = 80
-            gantry_des_z = 180
-            print("The desired Y and Z positions for gantry are: {}, {}".format(gantry_des_y, gantry_des_z))
-
-            def send_yz_repeat(count=0):
-                if count >= 2:
-                    print("Finished Y/Z sends.")
-                    QTimer.singleShot(10000, step3_theta)
-                    return
-
-                manager.send_yz_position(y=int(gantry_des_y), z=int(gantry_des_z))
-                QTimer.singleShot(5000, lambda: send_yz_repeat(count + 1))
-
-
-        def step3_theta():
-            print("Step 3: Sending theta to end effector.")
-            manager.send_theta_to_effector(theta=120.0, delta=0.0)
-            QTimer.singleShot(10000, step4a_inject_gantry)
-
-        def step4a_inject_gantry():
-            print("Step 4a: Injecting gantry.")
-            manager.gantry.injectA()
-            QTimer.singleShot(10000, step4b_inject_both)
-
-        def step4b_inject_both():
-            print("Step 4b: Injecting both.")
-            manager.inject_all()
-            QTimer.singleShot(10000, step4c_retract_sample)
-
-        def step4c_retract_sample():
-            print("Step 4c: Retracting sample.")
-            manager.gantry.injectC()
-            QTimer.singleShot(30000, step5_home)
-
-        def step5_home():
-            print("Step 5: Homing gantry and end effector.")
-            manager.home_all()
-
-        step2_yz_position()
-
-    # Start sequence after app init
-    QTimer.singleShot(0, run_full_automation_sequence)
-
-    # Graceful shutdown on Ctrl+C
-    def run_app():
-        try:
-            sys.exit(app.exec())
-        except KeyboardInterrupt:
-            print("\nKeyboardInterrupt detected. Closing all connections...")
-            manager.close_all()
-            QTimer.singleShot(0, app.quit)
-
-    import signal
-    def handle_interrupt(signum, frame):
-        print("\nKeyboardInterrupt (signal) detected. Closing all connections...")
-        manager.close_all()
-        QTimer.singleShot(0, app.quit)
-
-    signal.signal(signal.SIGINT, handle_interrupt)
-
-    run_app()
+    print("Sequence complete.")
