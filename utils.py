@@ -653,7 +653,7 @@ if __name__ == "__main__":
     manager.camera1.start()
     manager.camera1.camera.processing_active = True
     manager.camera1.detection_active = True
-    manager.camera1.open_tuner()
+    # manager.camera1.open_tuner()
     manager.camera1.gui_active = True
 
     manager.camera2.start()
