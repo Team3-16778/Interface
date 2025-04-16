@@ -663,7 +663,7 @@ if __name__ == "__main__":
             global alignment_active
             alignment_active = True
             print("Step 1: Starting X-axis alignment.")
-            QTimer.singleShot(15000, step2_yz_position)  # Align for 15s
+            QTimer.singleShot(30000, step2_yz_position)  # Align for 30s
 
         def step2_yz_position():
             global alignment_active
