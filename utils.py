@@ -711,19 +711,20 @@ if __name__ == "__main__":
             alignment_active = False
 
             def calculate_yz():
-                # Get X position from gantry
-                dis_x = manager.gantry.get_position()[0]
-                offset_x = 50 #mm, ~2 inch(from camera to gantry x zero)
-                dis_x = dis_x + offset_x
-                target = manager.camera2.camera.get_center_of_mask()
+                # # Get X position from gantry
+                # dis_x = manager.gantry.get_position()[0]
+                # offset_x = 50 #mm, ~2 inch(from camera to gantry x zero)
+                # dis_x = dis_x + offset_x
+                # target = manager.camera2.camera.get_center_of_mask()
+                target = None
                 if target:
                     u, v = target
                     # calculate 3D position of the target in world frame
                     target_y, target_z, _ = manager.camera2.camera.get_world_3d(u, v, dis_x)
                 else: # if no target detected (go to backup position: y is at the center of the camera2)
+                    print("Target not detected, using backup position.")
                     target_y = 0.4826 - 172.8/1000 # preset 0.4826m(19 inches) from gantry y zero
                     target_z = -0.4492625 + 0.1778 # preset 0.1778m(7 inches): target from ground(-0.4492625m in world calculation)
-                    print("No target detected")
 
                 L_ext = 275.72 #mm, from end effector rotation center to external pin
                 ET = L_ext + 30.0 + 100.0 # preset 100mm from pin to external pin to target center, 30mm for internal pin
