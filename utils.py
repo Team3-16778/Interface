@@ -666,7 +666,7 @@ if __name__ == "__main__":
     alignment_active = True
     start_time = time.time()
     center_y = 240
-    timeout = 25
+    timeout = 35
 
     while True:
         manager.camera1.update_frame()
