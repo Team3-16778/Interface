@@ -189,7 +189,7 @@ class CameraHandler(QObject):
         self.detection_active = True
         self.name = name
         self.frame_counter = 0
-        self.detection_interval = 3
+        self.detection_interval = 5
         self.display_interval = 1
         self.last_center = None
         self.gui_active = False
@@ -688,7 +688,7 @@ if __name__ == "__main__":
 
     timer = QTimer()
     timer.timeout.connect(update_and_control)
-    timer.start(200)
+    timer.start(500)
 
     # Main automation sequence
     def run_full_automation_sequence():
@@ -698,7 +698,7 @@ if __name__ == "__main__":
             global alignment_active
             alignment_active = True
             print("Step 1: Starting X-axis alignment.")
-            QTimer.singleShot(60000, step2_yz_position)  # Align for 60s
+            QTimer.singleShot(25000, step2_yz_position)  # Align for 25s
 
         def step2_yz_position():
             global alignment_active
