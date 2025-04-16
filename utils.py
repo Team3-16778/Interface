@@ -375,9 +375,10 @@ class Gantry(AbstractSerialDevice):
         """
         Set the target position for the gantry.
         """
-        self.target_x = x
-        self.target_y = y
-        self.target_z = z
+        self.target_x = int(x)
+        self.target_y = int(y)
+        self.target_z = int(z)
+        print(f"Target set to: {self.target_x}, {self.target_y}, {self.target_z}")
 
     def send_to_target(self):
         """
