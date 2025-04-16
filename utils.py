@@ -339,7 +339,7 @@ class Gantry(AbstractSerialDevice):
     def goto_position(self, x, y, z):
         """Send GOTO command to move gantry to (x, y, z)."""
         try:
-            cmd = f"GOTO {x:.2f} {y:.2f} {z:.2f}\n"
+            cmd = f"GOTO {int(x)} {int(y)} {int(z)}\n"
             self.ser.write(cmd.encode())
             print(f"SENT: {cmd.strip()}")
         except Exception as e:
@@ -624,6 +624,9 @@ class HardwareManager:
 if __name__ == "__main__":
     app = QApplication(sys.argv)
     manager = HardwareManager()
+    # Print ports on both devices
+    print("Gantry Port:", manager.gantry.port)
+    print("End Effector Port:", manager.end_effector.port)
     manager.home_all()
     time.sleep(60)  # Allow time for homing
     print("Homing complete. Starting camera processing...")
