@@ -456,6 +456,13 @@ class HardwareManager:
         self.current_y = 0.0
         self.current_z = 0.0
 
+    def set_blind_vals(self, x, y, z):
+        """Set blind control values"""
+        self.current_x = x
+        self.current_y = y
+        self.current_z = z
+        self.gantry.set_target(x, y, z)
+
     
     def connect_gantry(self):
         """Initialize gantry with basic error handling"""
@@ -632,6 +639,9 @@ if __name__ == "__main__":
     print("Homing complete. Starting camera processing...")
 
     manager.gantry.goto_position(230, 260, 140)  # Move gantry to preset position for X calibration
+    manager.set_blind_vals(230, 260, 140)  # Set blind control values
+
+    time.sleep(5)
 
     # Load calibration files
     manager.camera1.camera.camera_intrinsics = np.load('camera2_calibration_data.npz')
