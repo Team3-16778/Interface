@@ -635,8 +635,11 @@ if __name__ == "__main__":
     manager.camera1.start()
     manager.camera1.camera.processing_active = True
     manager.camera1.detection_active = True
-
     manager.camera1.open_tuner()
+
+    manager.camera2.start()
+    manager.camera2.camera.processing_active = True
+    manager.camera2.detection_active = True
 
     alignment_active = False  # Global flag to enable X control during alignment
 
