@@ -624,6 +624,9 @@ class HardwareManager:
 if __name__ == "__main__":
     app = QApplication(sys.argv)
     manager = HardwareManager()
+    manager.home_all()
+    time.sleep(30)  # Allow time for homing
+    print("Homing complete. Starting camera processing...")
 
     # Load calibration files
     manager.camera1.camera.camera_intrinsics = np.load('camera2_calibration_data.npz')
