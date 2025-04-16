@@ -731,6 +731,15 @@ if __name__ == "__main__":
             gantry_des_z = 180
             print("The desired Y and Z positions for gantry are: {}, {}".format(gantry_des_y, gantry_des_z))
 
+            def send_yz_repeat(count=0):
+                if count >= 2:
+                    print("Finished Y/Z sends.")
+                    QTimer.singleShot(10000, step3_theta)
+                    return
+
+                manager.send_yz_position(y=int(gantry_des_y), z=int(gantry_des_z))
+                QTimer.singleShot(5000, lambda: send_yz_repeat(count + 1))
+
             print(f"Step 2: Sending Y/Z position.")
         
             for i in range(3):
