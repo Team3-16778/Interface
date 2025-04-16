@@ -5,7 +5,7 @@ port = '/dev/ttyACM1'
 
 ser = serial.Serial(port, 9600, timeout=1)
 
-command = "GOTO 100 100 100"
+command = "ROTATE 100 10"
 
 while True:
     ser.write(command.encode())
