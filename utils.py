@@ -52,8 +52,8 @@ class Camera:
             # Optimized pipeline with lower resolution
             pipeline = (
                 "nvarguscamerasrc sensor-id={} ! "
-                "video/x-raw(memory:NVMM), width=640, height=480, format=(string)NV12, "
-                "framerate=(fraction)30/1 ! nvvidconv ! video/x-raw, format=(string)BGRx ! "
+                "video/x-raw(memory:NVMM), width=3280, height=2464, format=(string)NV12, "
+                "framerate=(fraction)21/1 ! nvvidconv ! video/x-raw, format=(string)BGRx ! "
                 "videoconvert ! video/x-raw, format=(string)BGR ! appsink drop=1"
             ).format(self.sensor_id)
             self.cap = cv2.VideoCapture(pipeline, cv2.CAP_GSTREAMER)
