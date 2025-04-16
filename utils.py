@@ -712,7 +712,7 @@ if __name__ == "__main__":
     # STEP 4c: Retract
     print("Step 4c: Retracting sample.")
     manager.gantry.injectC()
-    time.sleep(30)
+    time.sleep(40)
 
     # STEP 5: Home
     print("Step 5: Homing gantry and end effector.")
