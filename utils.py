@@ -644,17 +644,29 @@ if __name__ == "__main__":
     alignment_active = False  # Global flag to enable X control during alignment
 
     # Global camera update + control loop
+    TARGET_UPDATE_INTERVAL = 0.5  # seconds
+    last_target_time = 0.0
+
     def update_and_control():
+        # Always update the frame
         manager.camera1.update_frame()
+
+        # Blind X control if alignment is active
         if alignment_active:
             manager.blind_x_control()
-        target = manager.camera1.camera.get_center_of_mask()
-        if target:
-            u, v = target
-            world_3d = manager.camera1.camera.get_world_3d(u, v)
-            print("3D position:", world_3d)
-        else:
-            print("No target detected")
+
+        # Check if enough time has passed to retrieve/print a target update
+        global last_target_time
+        now = time.time()
+        if (now - last_target_time) >= TARGET_UPDATE_INTERVAL:
+            target = manager.camera1.camera.get_center_of_mask()
+            if target:
+                u, v = target
+                world_3d = manager.camera1.camera.get_world_3d(u, v)
+                print("3D position:", world_3d)
+            else:
+                print("No target detected")
+            last_target_time = now
 
     timer = QTimer()
     timer.timeout.connect(update_and_control)
@@ -673,38 +685,42 @@ if __name__ == "__main__":
         def step2_yz_position():
             global alignment_active
             alignment_active = False
-            # Get X position from gantry
-            dis_x = manager.gantry.get_position()[0]
-            offset_x = 50 #mm, ~2 inch(from camera to gantry x zero)
-            dis_x = dis_x + offset_x
-            target = manager.camera2.camera.get_center_of_mask()
-            if target:
-                u, v = target
-                # calculate 3D position of the target in world frame
-                target_y, target_z, _ = manager.camera2.camera.get_world_3d(u, v, dis_x)
-            else: # if no target detected (go to backup position: y is at the center of the camera2)
-                target_y = 0.4826 - 172.8/1000 # preset 0.4826m(19 inches) from gantry y zero
-                target_z = -0.4492625 + 0.1778 # preset 0.1778m(7 inches): target from ground(-0.4492625m in world calculation)
-                print("No target detected")
 
-            L_ext = 275.72 #mm, from end effector rotation center to external pin
-            ET = L_ext + 30.0 + 100.0 # preset 100mm from pin to external pin to target center, 30mm for internal pin
-            theta = 120*np.pi/180 # preset theta for end effector
+            def calculate_yz():
+                # Get X position from gantry
+                dis_x = manager.gantry.get_position()[0]
+                offset_x = 50 #mm, ~2 inch(from camera to gantry x zero)
+                dis_x = dis_x + offset_x
+                target = manager.camera2.camera.get_center_of_mask()
+                if target:
+                    u, v = target
+                    # calculate 3D position of the target in world frame
+                    target_y, target_z, _ = manager.camera2.camera.get_world_3d(u, v, dis_x)
+                else: # if no target detected (go to backup position: y is at the center of the camera2)
+                    target_y = 0.4826 - 172.8/1000 # preset 0.4826m(19 inches) from gantry y zero
+                    target_z = -0.4492625 + 0.1778 # preset 0.1778m(7 inches): target from ground(-0.4492625m in world calculation)
+                    print("No target detected")
 
-            gantry_offset_y = 172.8 #mm, 11-4 inch (-5mm for safety)
-            target_y = target_y*1000 + gantry_offset_y
-            gantry_des_y = target_y - ET*np.sin(theta)
+                L_ext = 275.72 #mm, from end effector rotation center to external pin
+                ET = L_ext + 30.0 + 100.0 # preset 100mm from pin to external pin to target center, 30mm for internal pin
+                theta = 120*np.pi/180 # preset theta for end effector
 
-            gantry_offset_z = 7.7 #mm, 2-1.5 inch (-5mm for safety)
-            target_z = - target_z*1000 + gantry_offset_z
-            gantry_des_z = target_z + ET*np.cos(theta)
+                gantry_offset_y = 172.8 #mm, 11-4 inch (-5mm for safety)
+                target_y = target_y*1000 + gantry_offset_y
+                gantry_des_y = target_y - ET*np.sin(theta)
 
-            print("The desired Y and Z positions for gantry are: {}, {}".format(gantry_des_y, gantry_des_z))
+                gantry_offset_z = 7.7 #mm, 2-1.5 inch (-5mm for safety)
+                target_z = - target_z*1000 + gantry_offset_z
+                gantry_des_z = target_z + ET*np.cos(theta)
 
-            # Calculate Y and Z positions
+                print("The desired Y and Z positions for gantry are: {}, {}".format(gantry_des_y, gantry_des_z))
+                return gantry_des_y, gantry_des_z
+            
+            gantry_des_y, gantry_des_z = calculate_yz()
+
             print("Step 2: Sending Y/Z position.")
             manager.send_yz_position(y=gantry_des_y, z=gantry_des_z)
-            QTimer.singleShot(10000, step3_theta)
+            QTimer.singleShot(30000, step3_theta)
 
         def step3_theta():
             print("Step 3: Sending theta to end effector.")
