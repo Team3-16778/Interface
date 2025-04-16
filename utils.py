@@ -641,7 +641,6 @@ if __name__ == "__main__":
     manager.gantry.goto_position(230, 260, 140)  # Move gantry to preset position for X calibration
     manager.set_blind_vals(230, 260, 140)  # Set blind control values
 
-    time.sleep(5)
 
     # Load calibration files
     manager.camera1.camera.camera_intrinsics = np.load('camera2_calibration_data.npz')
@@ -661,6 +660,10 @@ if __name__ == "__main__":
 
     alignment_active = False  # Global flag to enable X control during alignment
 
+
+    time.sleep(10)
+
+    
     # Global camera update + control loop
     TARGET_UPDATE_INTERVAL = 0.5  # seconds
     last_target_time = 0.0
