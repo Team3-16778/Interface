@@ -769,8 +769,9 @@ if __name__ == "__main__":
             
             gantry_des_y, gantry_des_z = calculate_yz()
 
-            print("Step 2: Sending Y/Z position.")
             manager.send_yz_position(y=gantry_des_y, z=gantry_des_z)
+            print("Step 2: Sending Y/Z position.")
+            
             QTimer.singleShot(10000, step3_theta)
 
         def step3_theta():
