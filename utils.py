@@ -728,7 +728,7 @@ if __name__ == "__main__":
             # gantry_des_y, gantry_des_z = calculate_yz()
 
             gantry_des_y = 80
-            gantry_des_z = 223
+            gantry_des_z = 180
             print("The desired Y and Z positions for gantry are: {}, {}".format(gantry_des_y, gantry_des_z))
 
             print(f"Step 2: Sending Y/Z position.")
