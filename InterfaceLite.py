@@ -442,4 +442,5 @@ if __name__ == "__main__":
     interface = InterfaceLite(hardware_manager=hardware_manager)
     interface.show()
 
+    hardware_manager.close_all()
     sys.exit(app.exec())

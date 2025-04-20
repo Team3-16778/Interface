@@ -378,6 +378,10 @@ class Gantry(AbstractSerialDevice):
         self.target_x = int(x)
         self.target_y = int(y)
         self.target_z = int(z)
+        # safety constraints: x in [10,500], y in [10, 600], z in [10, 300]
+        self.target_x = np.clip(self.target_x, 10, 500)
+        self.target_y = np.clip(self.target_y, 10, 600)
+        self.target_z = np.clip(self.target_z, 10, 300)
         print(f"Target set to: {self.target_x}, {self.target_y}, {self.target_z}")
 
     def send_to_target(self):
@@ -714,9 +718,13 @@ if __name__ == "__main__":
     manager.gantry.injectC()
     time.sleep(40)
 
-    # STEP 5: Home
-    print("Step 5: Homing gantry and end effector.")
-    manager.home_all()
-    time.sleep(5)
+    # # STEP 5: Home
+    # print("Step 5: Homing gantry and end effector.")
+    # manager.home_all()
+    # time.sleep(5)
 
     print("Sequence complete.")
+
+    manager.close_all()
+    
+    sys.exit(app.exec())
