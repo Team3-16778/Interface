@@ -104,11 +104,13 @@ class InterfaceLite(QMainWindow):
 
         # Sliders + LCD for X, Y, Z
         labels = ["Gantry X", "Gantry Y", "Gantry Z"]
+        gantry_range = [[10,500],[10,600],[10,300]]
+        gantry_homing_pos = [230, 260, 140]
         for i, lbl in enumerate(labels):
             row = i + 2
             label = QLabel(lbl)
             slider = QSlider(Qt.Orientation.Horizontal)
-            slider.setRange(0, 100)
+            slider.setRange(gantry_range[i][0], gantry_range[i][1])
             slider.setValue(50)
 
             lcd = QLCDNumber()
