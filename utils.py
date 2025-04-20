@@ -27,6 +27,9 @@ class Camera:
         name="Camera",
         use_csi=False,
         sensor_id=0,
+        width = 1280,
+        height = 720,
+        framerate = 60,
         intrinsics=None,
         extrinsics = None
     ):
@@ -40,6 +43,9 @@ class Camera:
         self.processing_active = False  # New flag for selective processing
         self._is_capturing = False
         self.cap = None
+        self.width = width
+        self.height = height,
+        self.framerate = framerate
 
         self.camera_intrinsics = intrinsics
         self.camera_extrinsics = extrinsics
@@ -52,10 +58,10 @@ class Camera:
             # Optimized pipeline with lower resolution
             pipeline = (
                  "nvarguscamerasrc sensor-id={} ! "
-                 "video/x-raw(memory:NVMM), width=640, height=480, format=(string)NV12, "
-                 "framerate=(fraction)30/1 ! nvvidconv ! video/x-raw, format=(string)BGRx ! "
+                 "video/x-raw(memory:NVMM), width={}, height={}, format=(string)NV12, "
+                 "framerate=(fraction){}/1 ! nvvidconv ! video/x-raw, format=(string)BGRx ! "
                  "videoconvert ! video/x-raw, format=(string)BGR ! appsink drop=1"
-            ).format(self.sensor_id)
+            ).format(self.sensor_id, self.width, self.height, self.framerate)
             self.cap = cv2.VideoCapture(pipeline, cv2.CAP_GSTREAMER)
         else:
             self.cap = cv2.VideoCapture(self.cam_index)
