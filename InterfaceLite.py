@@ -397,6 +397,10 @@ class InterfaceLite(QMainWindow):
     def gantry_home(self):
         if self.gantry:
             self.gantry.home()
+            gantry_homing_pos = [230, 260, 140]
+            self.gantry_x = gantry_homing_pos[0]
+            self.gantry_y = gantry_homing_pos[1]
+            self.gantry_z = gantry_homing_pos[2]
 
             
 
