@@ -629,10 +629,11 @@ class HardwareManager:
 
     def inject_all(self):
         """Trigger injection on both gantry and end effector."""
-        if self.gantry:
-            self.gantry.inject()
         if self.end_effector:
             self.end_effector.inject()
+        if self.gantry:
+            self.gantry.inject()
+
 
     def home_all(self):
         """Home all devices."""
@@ -714,19 +715,20 @@ if __name__ == "__main__":
     # STEP 4a: Inject gantry
     print("Step 4a: Injecting gantry.")
     manager.gantry.injectA()
-    time.sleep(10)
+    time.sleep(5)
 
     # STEP 4b: Inject both
     print("Step 4b: Injecting both.")
     manager.inject_all()
-    time.sleep(10)
+    time.sleep(2.5)
 
     # STEP 4c: Retract
     print("Step 4c: Retracting sample.")
     manager.gantry.injectC()
-    time.sleep(40)
+    time.sleep(10)
 
-    # # STEP 5: Home
+    # STEP 5: End
+    manager.send_theta_to_effector(theta=0.0, delta=0.0)
     # print("Step 5: Homing gantry and end effector.")
     # manager.home_all()
     # time.sleep(5)

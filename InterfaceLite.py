@@ -134,6 +134,11 @@ class InterfaceLite(QMainWindow):
         self.gantry_home_btn.clicked.connect(self.gantry_home)
         gantry_layout.addWidget(self.gantry_home_btn, 6, 0, 1, 3)
 
+        # Inject all btn
+        self.inject_all_btn = QPushButton("INJECT ALL")
+        self.inject_all_btn.clicked.connect(self.inject_all)
+        gantry_layout.addWidget(self.inject_all_btn, 7, 0, 1, 3)
+
         control_layout.addWidget(self.gantry_group)
 
         # Connect port selection signal to instantiate/reconnect Gantry
@@ -167,7 +172,7 @@ class InterfaceLite(QMainWindow):
             row = i + 2
             label = QLabel(lbl)
             slider = QSlider(Qt.Orientation.Horizontal)
-            slider.setRange(-90, 90)      # example range, adjust as needed
+            slider.setRange(0, 180)      # example range, adjust as needed
             slider.setValue(0)           # default
             slider.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Fixed)
 
@@ -402,7 +407,8 @@ class InterfaceLite(QMainWindow):
             self.gantry_y = gantry_homing_pos[1]
             self.gantry_z = gantry_homing_pos[2]
 
-            
+    def inject_all(self):
+        self.hw.inject_all()
 
 
    ##### End-Effector Port Handling #####
