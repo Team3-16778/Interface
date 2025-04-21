@@ -702,7 +702,7 @@ if __name__ == "__main__":
     print("Step 2: Sending Y/Z position phase 1.")
     alignment_active = False
     gantry_des_y = 80
-    gantry_des_z = 180
+    gantry_des_z = 195
     print(f"The desired Y and Z positions for gantry are: {gantry_des_y}, {gantry_des_z}")
     manager.send_yz_position(y=int(gantry_des_y), z=int(gantry_des_z))
     time.sleep(10)
