@@ -44,7 +44,7 @@ class Camera:
         self._is_capturing = False
         self.cap = None
         self.width = width
-        self.height = height,
+        self.height = height
         self.framerate = framerate
 
         self.camera_intrinsics = intrinsics
@@ -62,6 +62,7 @@ class Camera:
                  "framerate=(fraction){}/1 ! nvvidconv ! video/x-raw, format=(string)BGRx ! "
                  "videoconvert ! video/x-raw, format=(string)BGR ! appsink drop=1"
             ).format(self.sensor_id, self.width, self.height, self.framerate)
+            print(pipeline)
             self.cap = cv2.VideoCapture(pipeline, cv2.CAP_GSTREAMER)
         else:
             self.cap = cv2.VideoCapture(self.cam_index)
@@ -191,6 +192,7 @@ class CameraHandler(QObject):
     def __init__(self, cam_index=0, name="Camera", use_csi=False, sensor_id=0):
         super().__init__()
         self.camera = Camera(cam_index, name, use_csi, sensor_id)
+        # self.camera = Camera(cam_index, name, use_csi, sensor_id, width=3280, height=2464, framerate=21)
         self.active = False
         self.detection_active = True
         self.name = name
@@ -731,6 +733,5 @@ if __name__ == "__main__":
 
     print("Sequence complete.")
 
-    manager.close_all()
-    
+    manager.close_all()   
     sys.exit(app.exec())
