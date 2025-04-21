@@ -111,10 +111,10 @@ class InterfaceLite(QMainWindow):
             label = QLabel(lbl)
             slider = QSlider(Qt.Orientation.Horizontal)
             slider.setRange(gantry_range[i][0], gantry_range[i][1])
-            slider.setValue(50)
+            slider.setValue(gantry_homing_pos[i])
 
             lcd = QLCDNumber()
-            lcd.display(50)
+            lcd.display(gantry_homing_pos[i])
             slider.valueChanged.connect(lcd.display)
             slider.valueChanged.connect(lambda val, idx=i: self.update_gantry(idx, val))
 
@@ -124,10 +124,15 @@ class InterfaceLite(QMainWindow):
         
         # Position X btn
         self.position_x_btn = QPushButton("Positional X")
-        self.gantry_command_btn.clicked.connect(self.position_x)
+        self.position_x_btn.clicked.connect(self.position_x)
         gantry_layout.addWidget(self.position_x_btn, 5, 0, 1, 3)
         self.position_x_timer = QTimer(self)
         self.position_x_timer.timeout.connect(self.position_x_sender)
+
+        # Homing btn
+        self.gantry_home_btn = QPushButton("HOME")
+        self.gantry_home_btn.clicked.connect(self.gantry_home)
+        gantry_layout.addWidget(self.gantry_home_btn, 6, 0, 1, 3)
 
         control_layout.addWidget(self.gantry_group)
 
@@ -388,6 +393,10 @@ class InterfaceLite(QMainWindow):
         if self.x_error is not None and self.x_error < 10:
             self.position_x_timer.stop()
             print("target Reached!")
+
+    def gantry_home(self):
+        if self.gantry:
+            self.gantry.home()
 
             
 
