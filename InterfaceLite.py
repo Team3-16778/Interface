@@ -243,7 +243,6 @@ class InterfaceLite(QMainWindow):
         self.cam2_tune_btn.setStyleSheet("QPushButton { font-size: 16px; font-weight: bold; }")
         camera_controls_layout.addWidget(self.cam2_tune_btn, stretch=1)
 
-        # Add this to your camera controls layout
         self.plot_btn = QPushButton("Show Y Position Plot")
         self.plot_btn.setMaximumHeight(50)
         self.plot_btn.setFont(font_button_1)
