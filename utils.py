@@ -665,6 +665,9 @@ if __name__ == "__main__":
     manager.camera1.detection_active = True
     manager.camera1.gui_active = True
 
+    # Record changes in target[x] to record breathing pattern
+
+
     # Alignment loop using time.sleep
     print("Beginning alignment loop...")
     alignment_active = True
@@ -687,7 +690,8 @@ if __name__ == "__main__":
         manager.blind_x_control()
         time.sleep(0.5)  # Prevent serial flooding
 
-    time.sleep(5)  # Hold position before moving to Y/Z
+    # Hold after alignment
+    time.sleep(5)
 
     # STEP 2: Move to Y/Z
     print("Step 2: Sending Y/Z position phase 1.")
@@ -701,29 +705,68 @@ if __name__ == "__main__":
     # STEP 3: Send theta
     print("Step 3: Sending theta to end effector.")
     manager.send_theta_to_effector(theta=120.0, delta=0.0)
-    time.sleep(10)
-
-    # STEP 4a: Inject gantry
-    print("Step 4a: Injecting gantry.")
-    manager.gantry.injectA()
     time.sleep(5)
 
-    # STEP 4b: Inject both
+    # === NEW BREATHING CAPTURE PHASE ===
+    print("Capturing breathing motion for stability window...")
+    breathing_x_values = []
+    timestamps = []
+    breathing_duration = 15   # Two full cycles
+    start_breath = time.time()
+
+    while time.time() - start_breath < breathing_duration:
+        manager.camera1.update_frame()
+        target = manager.camera1.camera.get_center_of_mask()
+        if target:
+            target_x, _ = target
+            breathing_x_values.append(target_x)
+            timestamps.append(time.time() - start_breath)
+        time.sleep(0.05)
+
+    # Detect low-motion segment
+    x_vals = np.array(breathing_x_values)
+    times = np.array(timestamps)
+    dx = np.gradient(x_vals, times)
+    still_thresh = 1.0  # pixel/s
+    still_indices = np.where(np.abs(dx) < still_thresh)[0]
+
+    from itertools import groupby
+    from operator import itemgetter
+
+    groups = []
+    for k, g in groupby(enumerate(still_indices), lambda i_x: i_x[0] - i_x[1]):
+        group = list(map(itemgetter(1), g))
+        if len(group) >= 30:  # ~1.5s at 20 FPS
+            groups.append(group)
+
+    if groups:
+        best_group = max(groups, key=len)
+        stable_start_time = times[best_group[0]]
+        now = time.time() - start_breath
+        delay = stable_start_time - now
+        print(f"Stable window starts at t={stable_start_time:.2f}s, delaying {max(delay,0):.2f}s")
+        if delay > 0:
+            time.sleep(delay)
+
+        print("Stable window reached. Proceeding with injection.")
+    else:
+        print("No stable period detected—falling back to immediate injection.")
+
+    # === INJECTION SEQUENCE ===
+    print("Step 4a: Injecting gantry.")
+    manager.gantry.injectA()
+    time.sleep(2.5)
+
     print("Step 4b: Injecting both.")
     manager.inject_all()
     time.sleep(2.5)
 
-    # STEP 4c: Retract
     print("Step 4c: Retracting sample.")
     manager.gantry.injectC()
     time.sleep(10)
 
-    # STEP 5: End
+    # STEP 5: Reset rotation
     manager.send_theta_to_effector(theta=0.0, delta=0.0)
-    # print("Step 5: Homing gantry and end effector.")
-    # manager.home_all()
-    # time.sleep(5)
-
     print("Sequence complete.")
 
     manager.close_all()   
