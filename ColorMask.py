@@ -154,7 +154,7 @@ class ColorMask(QWidget):
             dist = np.linalg.norm(center - np.array([cx, cy]))
             area = cv2.contourArea(contour)
 
-            return area - 1000.0 * dist # extreme distance penalty
+            return area - 3000.0 * dist # extreme distance penalty
 
         return max(contours, key=score)
 
