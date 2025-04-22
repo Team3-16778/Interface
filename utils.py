@@ -50,6 +50,12 @@ class Camera:
         self.camera_intrinsics = intrinsics
         self.camera_extrinsics = extrinsics
 
+        # Target detection smoothing parameters
+        self.smoothed_center = None
+        self.smoothing_alpha = 0.3
+        self.max_jump_px = 20
+
+
     def start_cap(self):
         if self._is_capturing:
             return
@@ -115,9 +121,26 @@ class Camera:
             if contours:
                 largest = max(contours, key=cv2.contourArea)
                 x, y, w, h = cv2.boundingRect(largest)
-                self.last_target_center = (x + w // 2, y + h // 2)
+                cx, cy = x + w // 2, y + h // 2
+                raw_center = np.array([cx, cy], dtype=np.float32)
+
+                if self.smoothed_center is None:
+                    self.smoothed_center = raw_center
+                else:
+                    dist = np.linalg.norm(raw_center - self.smoothed_center)
+                    if dist < self.max_jump_px:
+                        self.smoothed_center = (
+                            self.smoothing_alpha * raw_center +
+                            (1 - self.smoothing_alpha) * self.smoothed_center
+                        )
+                self.last_target_center = tuple(map(int, self.smoothed_center))
+            else:
+                self.last_target_center = None
+        else:
+            self.last_target_center = None
 
         return mask, overlay, found
+
 
     def get_display_frame(self, draw_bbox=True):
         if self.latest_frame is None:
