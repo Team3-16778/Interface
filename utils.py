@@ -454,13 +454,13 @@ class EndEffector(AbstractSerialDevice):
                 return (t, d)
         return None
 class HardwareManager:
-    def __init__(self):
+    def __init__(self, disable_camera2=False):
         self.camera1: CameraHandler | None = None
         self.camera2: CameraHandler | None = None
         self.gantry: Gantry | None = None
         self.end_effector: EndEffector | None = None
 
-        self.connect_cameras()
+        self.connect_cameras(disable_camera2=disable_camera2)
         self.connect_gantry()
         self.connect_effector()
 
@@ -491,7 +491,7 @@ class HardwareManager:
         except Exception as e:
             print(f"End Effector init failed: {e}")
 
-    def connect_cameras(self):
+    def connect_cameras(self, disable_camera2=False):
         """Initialize cameras with basic error handling"""
         try:
             is_mac = platform.system() == "Darwin"
@@ -499,7 +499,8 @@ class HardwareManager:
             is_jetson = not is_mac and not is_windows  # Assume Jetson if not Mac or Windows
 
             self.camera1 = CameraHandler(0, "Camera 1", use_csi=is_jetson, sensor_id=0)
-            self.camera2 = CameraHandler(1, "Camera 2", use_csi=is_jetson, sensor_id=1)
+            if not disable_camera2:
+                self.camera2 = CameraHandler(1, "Camera 2", use_csi=is_jetson, sensor_id=1)
             return True
         except Exception as e:
             print(f"Camera init failed: {e}")
@@ -645,7 +646,7 @@ class HardwareManager:
 
 if __name__ == "__main__":
     app = QApplication(sys.argv)
-    manager = HardwareManager()
+    manager = HardwareManager(disable_camera2=True)
     print("Gantry Port:", manager.gantry.port)
     print("End Effector Port:", manager.end_effector.port)
 
@@ -661,18 +662,12 @@ if __name__ == "__main__":
     # Load calibration files
     manager.camera1.camera.camera_intrinsics = np.load('camera2_calibration_data.npz')
     manager.camera1.camera.camera_extrinsics = np.load('cam2_external_parameters_0415.npz')["T_world_camera"]
-    manager.camera2.camera.camera_intrinsics = np.load('camera2_calibration_data.npz')
-    manager.camera2.camera.camera_extrinsics = np.load('cam2_external_parameters_0415.npz')["T_world_camera"]
 
     # Start cameras and processing
     manager.camera1.start()
     manager.camera1.camera.processing_active = True
     manager.camera1.detection_active = True
     manager.camera1.gui_active = True
-
-    manager.camera2.start()
-    manager.camera2.camera.processing_active = True
-    manager.camera2.detection_active = True
 
     # Alignment loop using time.sleep
     print("Beginning alignment loop...")
