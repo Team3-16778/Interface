@@ -718,7 +718,7 @@ if __name__ == "__main__":
     manager.camera2.gui_active = True
 
     time.sleep(1)
-
+    
     # === BREATHING CAPTURE PHASE ===
     print("Capturing breathing motion for stability window using Camera 2...")
     breathing_x_values = []
@@ -737,8 +737,16 @@ if __name__ == "__main__":
         time.sleep(0.05)
 
     # Convert to numpy arrays
-    x_vals = np.array(breathing_x_values)
-    times = np.array(timestamps)
+    x_array = np.array(breathing_x_values)
+    t_array = np.array(timestamps)
+
+    # === Dynamically filter outliers (MAD-based) ===
+    median = np.median(x_array)
+    mad = np.median(np.abs(x_array - median))
+    z_thresh = 5.0
+    valid_mask = np.abs(x_array - median) / (mad + 1e-6) < z_thresh
+    x_vals = x_array[valid_mask]
+    times = t_array[valid_mask]
 
     # === Smooth X values ===
     from scipy.ndimage import gaussian_filter1d
@@ -777,7 +785,7 @@ if __name__ == "__main__":
         print(f"Detected stable breathing window start time: {stable_start_time:.2f}s")
     else:
         print("No stable breathing window detected. Proceeding without timing.")
-        print("Captured X values:", breathing_x_values)
+        print("Captured X values:", x_array.tolist())
 
 
     # === STEP 2: Move to Y/Z ===
