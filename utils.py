@@ -659,10 +659,6 @@ if __name__ == "__main__":
     manager.gantry.goto_position(230, 260, 140)
     manager.set_blind_vals(230, 260, 140)
 
-    # Load calibration files
-    manager.camera1.camera.camera_intrinsics = np.load('camera2_calibration_data.npz')
-    manager.camera1.camera.camera_extrinsics = np.load('cam2_external_parameters_0415.npz')["T_world_camera"]
-
     # Start cameras and processing
     manager.camera1.start()
     manager.camera1.camera.processing_active = True
