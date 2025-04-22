@@ -692,7 +692,7 @@ if __name__ == "__main__":
     print("Beginning alignment loop...")
     alignment_active = True
     start_time = time.time()
-    center_y = 240
+    center_y = manager.camera1.camera.height // 2
     timeout = 35
 
     while True:
