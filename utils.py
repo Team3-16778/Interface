@@ -669,7 +669,7 @@ class HardwareManager:
 
 if __name__ == "__main__":
     app = QApplication(sys.argv)
-    manager = HardwareManager(disable_camera2=True)
+    manager = HardwareManager()
     print("Gantry Port:", manager.gantry.port)
     print("End Effector Port:", manager.end_effector.port)
 
@@ -712,16 +712,23 @@ if __name__ == "__main__":
 
     time.sleep(1)
 
+    manager.camera2.start()
+    manager.camera2.camera.processing_active = True
+    manager.camera2.detection_active = True
+    manager.camera2.gui_active = True
+
+    time.sleep(1)
+
     # === NEW BREATHING CAPTURE PHASE ===
-    print("Capturing breathing motion for stability window...")
+    print("Capturing breathing motion for stability window using Camera 2...")
     breathing_x_values = []
     timestamps = []
     breathing_duration = 15  # Two full cycles
     breath_capture_start = time.time()
 
     while time.time() - breath_capture_start < breathing_duration:
-        manager.camera1.update_frame()
-        target = manager.camera1.camera.get_center_of_mask()
+        manager.camera2.update_frame()
+        target = manager.camera2.camera.get_center_of_mask()
         if target:
             target_x, _ = target
             breathing_x_values.append(target_x)
