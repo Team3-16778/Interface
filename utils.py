@@ -687,7 +687,7 @@ if __name__ == "__main__":
         manager.blind_x_control()
         time.sleep(0.5)
 
-    time.sleep(5)  # Hold after alignment
+    time.sleep(1)
 
     # === NEW BREATHING CAPTURE PHASE ===
     print("Capturing breathing motion for stability window...")
@@ -706,11 +706,19 @@ if __name__ == "__main__":
             print(f"[{time.time() - breath_capture_start:.2f}s] Target X: {target_x:.2f}")
         time.sleep(0.05)
 
-    # Detect stable X segments
+    # Convert to numpy arrays
     x_vals = np.array(breathing_x_values)
     times = np.array(timestamps)
-    dx = np.gradient(x_vals, times)
-    still_thresh = 1.0
+
+    # === Apply smoothing ===
+    from scipy.ndimage import gaussian_filter1d
+    x_vals_smooth = gaussian_filter1d(x_vals, sigma=2)
+
+    # === Compute derivative from smoothed data ===
+    dx = np.gradient(x_vals_smooth, times)
+
+    # === Detect stable segments (low derivative) ===
+    still_thresh = 1.0  # pixel/s
     still_indices = np.where(np.abs(dx) < still_thresh)[0]
 
     from itertools import groupby
@@ -720,7 +728,7 @@ if __name__ == "__main__":
     groups = []
     for k, g in groupby(enumerate(still_indices), lambda i_x: i_x[0] - i_x[1]):
         group = list(map(itemgetter(1), g))
-        if len(group) >= 30:
+        if len(group) >= 30:  # At ~20 FPS, 30 samples = 1.5s
             groups.append(group)
 
     if groups:
@@ -729,6 +737,9 @@ if __name__ == "__main__":
         print(f"Detected stable breathing window start time: {stable_start_time:.2f}s")
     else:
         print("No stable breathing window detected. Proceeding without timing.")
+        print("Captured X values:", breathing_x_values)
+
+
 
     # === STEP 2: Move to Y/Z ===
     print("Step 2: Sending Y/Z position phase 1.")
@@ -771,25 +782,6 @@ if __name__ == "__main__":
     # === STEP 5: Reset rotation ===
     manager.send_theta_to_effector(theta=0.0, delta=0.0)
     print("Sequence complete.")
-
-    import matplotlib.pyplot as plt
-
-    plt.figure(figsize=(10, 4))
-    plt.plot(timestamps, breathing_x_values, label="X Position")
-    plt.xlabel("Time (s)")
-    plt.ylabel("Target X Position (px)")
-    plt.title("Breathing Motion Capture")
-    plt.grid(True)
-
-    # Optional: highlight stable window
-    if stable_start_time is not None:
-        plt.axvline(stable_start_time, color='g', linestyle='--', label='Stable Window Start')
-
-    plt.legend()
-    plt.tight_layout()
-    plt.show()
-
-    time.sleep(50)
 
 
     manager.close_all()
