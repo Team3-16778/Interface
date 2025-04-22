@@ -598,7 +598,7 @@ class HardwareManager:
 
         try:
             _, target_y = target
-            center_y = 240
+            center_y = self.camera1.camera.height // 2
             step_mm = 2.0
 
             if abs(target_y - center_y) < 10:
