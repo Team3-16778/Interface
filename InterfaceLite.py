@@ -324,7 +324,7 @@ class InterfaceLite(QMainWindow):
             label.setText(f"Target at ({cx}, {cy})")
             label.setStyleSheet("color: green;")
             if cam_name == "Camera 1":
-                self.target_y_history.append(cy)
+                self.target_y_history.append(cx)
                 # Keep only the most recent points
                 if len(self.target_y_history) > self.max_history_length:
                     self.target_y_history.pop(0)
@@ -424,7 +424,21 @@ class InterfaceLite(QMainWindow):
             self.gantry_z = gantry_homing_pos[2]
 
     def inject_all(self):
+        # STEP 4a: Inject gantry
+        print("Step 4a: Injecting gantry.")
+        self.hw.gantry.injectA()
+        time.sleep(2.5)
+
+        # STEP 4b: Inject both
+        print("Step 4b: Injecting both.")
         self.hw.inject_all()
+        time.sleep(2.5)
+
+        # STEP 4c: Retract
+        print("Step 4c: Retracting sample.")
+        self.hw.gantry.injectC()
+        time.sleep(10)
+
 
 
    ##### End-Effector Port Handling #####
