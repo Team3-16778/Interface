@@ -7,8 +7,9 @@ from PySide6.QtWidgets import (
     QApplication, QMainWindow, QWidget, QLabel, QPushButton, QSlider, QVBoxLayout,
     QHBoxLayout, QGroupBox, QGridLayout, QComboBox, QLCDNumber, QSizePolicy, QLineEdit
 )
-from PySide6.QtCore import Qt, QTimer, QThread, Signal, QObject
+from PySide6.QtCore import Qt, QTimer, QThread, Signal, QObject, QPointF
 from PySide6.QtGui import QImage, QPixmap, QGuiApplication, QFont, QDoubleValidator
+from PySide6.QtCharts import QChart, QChartView, QLineSeries, QValueAxis
 
 import cv2
 import numpy as np
@@ -43,6 +44,9 @@ class InterfaceLite(QMainWindow):
         self.cam2_detection_status = None
 
         self.x_error = None
+
+        self.target_y_history = []  # List to store target y positions
+        self.max_history_length = 500  # Maximum number of points to store
 
         ## ------------------ Window Setup ------------------
         self.setWindowTitle("Discount daVinci Control Interface")
@@ -239,6 +243,14 @@ class InterfaceLite(QMainWindow):
         self.cam2_tune_btn.setStyleSheet("QPushButton { font-size: 16px; font-weight: bold; }")
         camera_controls_layout.addWidget(self.cam2_tune_btn, stretch=1)
 
+        # Add this to your camera controls layout
+        self.plot_btn = QPushButton("Show Y Position Plot")
+        self.plot_btn.setMaximumHeight(50)
+        self.plot_btn.setFont(font_button_1)
+        self.plot_btn.setStyleSheet("QPushButton { font-size: 16px; font-weight: bold; }")
+        self.plot_btn.clicked.connect(self.create_plot_window)
+        camera_controls_layout.addWidget(self.plot_btn, stretch=1)
+
         right_layout.addLayout(camera_controls_layout)
 
         # Connect camera signals
@@ -312,6 +324,11 @@ class InterfaceLite(QMainWindow):
             cx, cy = center
             label.setText(f"Target at ({cx}, {cy})")
             label.setStyleSheet("color: green;")
+            if cam_name == "Camera 1":
+                self.target_y_history.append(cy)
+                # Keep only the most recent points
+                if len(self.target_y_history) > self.max_history_length:
+                    self.target_y_history.pop(0)
         else:
             label.setText("No Target")
             label.setStyleSheet("color: red;")
@@ -449,6 +466,68 @@ class InterfaceLite(QMainWindow):
         print("Closing hardware connections...")
         self.hw.close_all()
         event.accept()
+
+    # target y history record and show
+    def create_plot_window(self):
+        """Create and show a window with a live plot of target y positions."""
+        self.plot_window = QWidget()
+        self.plot_window.setWindowTitle("Target Y Position History")
+        self.plot_window.resize(800, 400)
+        
+        # Create chart
+        self.chart = QChart()
+        self.chart.setTitle("Target Y Position Over Time")
+        
+        # Create series
+        self.series = QLineSeries()
+        self.series.setName("Y Position")
+        
+        # Add data to series
+        for i, y in enumerate(self.target_y_history):
+            self.series.append(i, y)
+        
+        self.chart.addSeries(self.series)
+        
+        # Create axes
+        self.axisX = QValueAxis()
+        self.axisX.setTitleText("Time (samples)")
+        self.axisX.setRange(0, self.max_history_length)
+        self.chart.addAxis(self.axisX, Qt.AlignBottom)
+        self.series.attachAxis(self.axisX)
+        
+        self.axisY = QValueAxis()
+        self.axisY.setTitleText("Y Position (pixels)")
+        self.axisY.setRange(0, 400)  # Assuming camera resolution is 400 pixels tall
+        self.chart.addAxis(self.axisY, Qt.AlignLeft)
+        self.series.attachAxis(self.axisY)
+        
+        # Create chart view
+        self.chart_view = QChartView(self.chart)
+        
+        # Layout
+        layout = QVBoxLayout()
+        layout.addWidget(self.chart_view)
+        self.plot_window.setLayout(layout)
+        
+        # Timer to update the plot
+        self.plot_timer = QTimer()
+        self.plot_timer.timeout.connect(self.update_plot)
+        self.plot_timer.start(10)  # Update every 10ms
+        
+        self.plot_window.show()
+
+    def update_plot(self):
+        """Update the plot with new data."""
+        self.series.clear()
+        for i, y in enumerate(self.target_y_history):
+            self.series.append(i, y)
+        
+        # Auto-scale Y axis if needed
+        if self.target_y_history:
+            min_y = min(self.target_y_history)
+            max_y = max(self.target_y_history)
+            padding = 20  # Add some padding
+            self.axisY.setRange(min_y - padding, max_y + padding)
 
 
 
