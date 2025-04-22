@@ -719,7 +719,7 @@ if __name__ == "__main__":
 
     time.sleep(1)
 
-    # === NEW BREATHING CAPTURE PHASE ===
+    # === BREATHING CAPTURE PHASE ===
     print("Capturing breathing motion for stability window using Camera 2...")
     breathing_x_values = []
     timestamps = []
@@ -740,17 +740,26 @@ if __name__ == "__main__":
     x_vals = np.array(breathing_x_values)
     times = np.array(timestamps)
 
-    # === Apply smoothing ===
+    # === Smooth X values ===
     from scipy.ndimage import gaussian_filter1d
     x_vals_smooth = gaussian_filter1d(x_vals, sigma=2)
 
-    # === Compute derivative from smoothed data ===
-    dx = np.gradient(x_vals_smooth, times)
+    # === Detect valleys (bottoms) ===
+    from scipy.signal import find_peaks
+    valleys, _ = find_peaks(-x_vals_smooth, distance=10, prominence=1)
 
-    # === Detect stable segments (low derivative) ===
+    if len(valleys) >= 1:
+        valley_times = times[valleys]
+        print(f"Detected breathing valleys at times: {[f'{t:.2f}s' for t in valley_times]}")
+    else:
+        print("No valleys found in smoothed signal.")
+
+    # === Compute derivative to find flat segments ===
+    dx = np.gradient(x_vals_smooth, times)
     still_thresh = 1.0  # pixel/s
     still_indices = np.where(np.abs(dx) < still_thresh)[0]
 
+    # === Group low-motion segments ===
     from itertools import groupby
     from operator import itemgetter
 
@@ -761,6 +770,7 @@ if __name__ == "__main__":
         if len(group) >= 30:  # At ~20 FPS, 30 samples = 1.5s
             groups.append(group)
 
+    # === Pick best group ===
     if groups:
         best_group = max(groups, key=len)
         stable_start_time = times[best_group[0]]
@@ -768,7 +778,6 @@ if __name__ == "__main__":
     else:
         print("No stable breathing window detected. Proceeding without timing.")
         print("Captured X values:", breathing_x_values)
-
 
 
     # === STEP 2: Move to Y/Z ===
