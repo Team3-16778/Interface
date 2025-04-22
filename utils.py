@@ -656,8 +656,8 @@ if __name__ == "__main__":
     print("Homing complete. Starting camera processing...")
 
     # Move to X start and set blind values
-    manager.gantry.goto_position(230, 260, 140)
-    manager.set_blind_vals(230, 260, 140)
+    manager.gantry.goto_position(175, 260, 140)
+    manager.set_blind_vals(175, 260, 140)
 
     # Start cameras and processing
     manager.camera1.start()
