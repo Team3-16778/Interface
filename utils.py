@@ -808,7 +808,7 @@ if __name__ == "__main__":
     # === STEP 4: Injection Sequence ===
     print("Step 4a: Injecting gantry.")
     manager.gantry.injectA()
-    time.sleep(2.5)
+    time.sleep(2)
 
     print("Step 4b: Injecting both.")
     manager.inject_all()
