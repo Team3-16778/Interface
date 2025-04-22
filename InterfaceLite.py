@@ -393,7 +393,27 @@ class InterfaceLite(QMainWindow):
             self.gantry_z = value
 
     def position_x(self):
-        self.position_x_timer.start(100)
+        timeout = 35
+        manager = self.hw
+        center_y = 240
+        start_time = time.time()
+
+        while True:
+            manager.camera1.update_frame()
+            if manager.camera1.camera.target_found:
+                _, target_y = manager.camera1.camera.get_center_of_mask()
+                if abs(target_y - center_y) < 15:
+                    print("Target aligned — exiting alignment loop.")
+                    break
+
+            if time.time() - start_time > timeout:
+                print("Alignment timeout — proceeding to next step.")
+                break
+
+            manager.blind_x_control()
+            time.sleep(0.5)
+    
+ 
 
     def position_x_sender(self):
         # pixel: y 0-400, set cy=200
