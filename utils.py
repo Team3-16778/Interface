@@ -560,16 +560,16 @@ class HardwareManager:
         
         # Additional cleanup
         print("Final cleanup...")
-        cv2.destroyAllWindows()
-        
-        # Extra garbage collection
-        import gc
-        gc.collect()
+        try:
+            import os
+            os.system("sudo systemctl restart nvargus-daemon")
+            time.sleep(2)  # Let it settle
+            cap = cv2.VideoCapture("nvarguscamerasrc ! video/x-raw(memory:NVMM), width=1280, height=720, framerate=30/1 ! nvvidconv ! video/x-raw, format=BGRx ! videoconvert ! appsink")
+            cv2.destroyAllWindows
+        except Exception as e:
+            print(f"Error during final cleanup: {e}")
 
-        # Restart camera module
-        import os
-        os.system('systemctl restart nvargus-daemon')
-        time.sleep(2.0)
+            
         
         print("Shutdown complete")
 
@@ -718,7 +718,7 @@ if __name__ == "__main__":
     manager.camera2.gui_active = True
 
     time.sleep(1)
-    
+
     # === BREATHING CAPTURE PHASE ===
     print("Capturing breathing motion for stability window using Camera 2...")
     breathing_x_values = []
