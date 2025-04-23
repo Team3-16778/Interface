@@ -8,3 +8,267 @@ Captured X values: [716, 716, 717, 716, 716, 716, 716, 716, 716, 716, 715, 717, 
 Detected breathing valleys at times: ['2.09s', '4.09s', '5.77s', '6.71s', '8.70s', '9.76s', '12.84s', '13.87s']
 No stable breathing window detected. Proceeding without timing.
 Captured X values: [748, 743, 735, 742, 727, 836, 741, 643, 749, 740, 832, 646, 653, 743, 745, 751, 753, 666, 657, 683, 659, 672, 768, 675, 768, 781, 728, 735, 683, 711, 747, 762, 724, 724, 713, 758, 756, 802, 694, 700, 707, 693, 801, 704, 779, 693, 791, 771, 781, 769, 760, 679, 764, 734, 679, 764, 753, 644, 648, 747, 740, 649, 734, 740, 736, 737, 734, 656, 648, 749, 740, 641, 747, 695, 745, 738, 743, 733, 735, 748, 746, 742, 738, 744, 743, 746, 757, 647, 751, 651, 750, 696, 688, 752, 714, 773, 690, 702, 791, 691, 698, 696, 804, 701, 706, 721, 700, 818, 716, 789, 718, 797, 699, 808, 799, 696, 799, 771, 789, 780, 853, 767, 664, 757, 757, 662, 756, 741, 738, 745, 653, 743, 732, 741, 741, 746, 741, 744, 740, 645, 758, 635, 647, 742, 743, 741, 743, 639, 685, 753, 729, 637, 741, 637]
+
+
+[INFO] Loaded HSV params from Camera 1_hsv_params.npy
+[INFO] Loaded HSV params from Camera 2_hsv_params.npy
+Initialized Gantry on /dev/ttyACM0 at 9600 baud.
+Initialized EndEffector on /dev/ttyACM1 at 9600 baud.
+Gantry Port: /dev/ttyACM0
+End Effector Port: /dev/ttyACM1
+Homing device...
+Homing device...
+SENT: ROTATE 0.00 0.00
+Homing complete. Starting camera processing...
+SENT: GOTO 175 260 140
+Target set to: 175, 260, 140
+nvarguscamerasrc sensor-id=0 ! video/x-raw(memory:NVMM), width=1280, height=720, format=(string)NV12, framerate=(fraction)60/1 ! nvvidconv ! video/x-raw, format=(string)BGRx ! videoconvert ! video/x-raw, format=(string)BGR ! appsink drop=1
+GST_ARGUS: Creating output stream
+CONSUMER: Waiting until producer is connected...
+GST_ARGUS: Available Sensor modes :
+GST_ARGUS: 3280 x 2464 FR = 21.000000 fps Duration = 47619048 ; Analog Gain range min 1.000000, max 10.625000; Exposure Range min 13000, max 683709000;
+
+GST_ARGUS: 3280 x 1848 FR = 28.000001 fps Duration = 35714284 ; Analog Gain range min 1.000000, max 10.625000; Exposure Range min 13000, max 683709000;
+
+GST_ARGUS: 1920 x 1080 FR = 29.999999 fps Duration = 33333334 ; Analog Gain range min 1.000000, max 10.625000; Exposure Range min 13000, max 683709000;
+
+GST_ARGUS: 1640 x 1232 FR = 29.999999 fps Duration = 33333334 ; Analog Gain range min 1.000000, max 10.625000; Exposure Range min 13000, max 683709000;
+
+GST_ARGUS: 1280 x 720 FR = 59.999999 fps Duration = 16666667 ; Analog Gain range min 1.000000, max 10.625000; Exposure Range min 13000, max 683709000;
+
+GST_ARGUS: Running with following settings:
+   Camera index = 0 
+   Camera mode  = 4 
+   Output Stream W = 1280 H = 720 
+   seconds to Run    = 0 
+   Frame Rate = 59.999999 
+GST_ARGUS: Setup Complete, Starting captures for 0 seconds
+GST_ARGUS: Starting repeat capture requests.
+CONSUMER: Producer has connected; continuing.
+[ WARN:0@43.428] global cap_gstreamer.cpp:1777 open OpenCV | GStreamer warning: Cannot query video position: status=0, value=-1, duration=-1
+Beginning alignment loop...
+No target detected
+No target detected
+No target detected
+No target detected
+Blind step to X: 173.00 (Target Y: 501)
+Target set to: 173, 260, 140
+SENT: GOTO 173 260 140
+Blind step to X: 171.00 (Target Y: 468)
+Target set to: 171, 260, 140
+SENT: GOTO 171 260 140
+Blind step to X: 169.00 (Target Y: 393)
+Target set to: 169, 260, 140
+SENT: GOTO 169 260 140
+Target aligned — exiting alignment loop.
+nvarguscamerasrc sensor-id=1 ! video/x-raw(memory:NVMM), width=1280, height=720, format=(string)NV12, framerate=(fraction)60/1 ! nvvidconv ! video/x-raw, format=(string)BGRx ! videoconvert ! video/x-raw, format=(string)BGR ! appsink drop=1
+GST_ARGUS: Creating output stream
+CONSUMER: Waiting until producer is connected...
+GST_ARGUS: Available Sensor modes :
+GST_ARGUS: 3280 x 2464 FR = 21.000000 fps Duration = 47619048 ; Analog Gain range min 1.000000, max 10.625000; Exposure Range min 13000, max 683709000;
+
+GST_ARGUS: 3280 x 1848 FR = 28.000001 fps Duration = 35714284 ; Analog Gain range min 1.000000, max 10.625000; Exposure Range min 13000, max 683709000;
+
+GST_ARGUS: 1920 x 1080 FR = 29.999999 fps Duration = 33333334 ; Analog Gain range min 1.000000, max 10.625000; Exposure Range min 13000, max 683709000;
+
+GST_ARGUS: 1640 x 1232 FR = 29.999999 fps Duration = 33333334 ; Analog Gain range min 1.000000, max 10.625000; Exposure Range min 13000, max 683709000;
+
+GST_ARGUS: 1280 x 720 FR = 59.999999 fps Duration = 16666667 ; Analog Gain range min 1.000000, max 10.625000; Exposure Range min 13000, max 683709000;
+
+GST_ARGUS: Running with following settings:
+   Camera index = 1 
+   Camera mode  = 4 
+   Output Stream W = 1280 H = 720 
+   seconds to Run    = 0 
+   Frame Rate = 59.999999 
+GST_ARGUS: Setup Complete, Starting captures for 0 seconds
+GST_ARGUS: Starting repeat capture requests.
+CONSUMER: Producer has connected; continuing.
+[ WARN:0@48.586] global cap_gstreamer.cpp:1777 open OpenCV | GStreamer warning: Cannot query video position: status=0, value=-1, duration=-1
+Capturing breathing motion for stability window using Camera 2...
+[0.31s] Target X: 641.00
+[0.40s] Target X: 638.00
+[0.49s] Target X: 631.00
+[0.58s] Target X: 629.00
+[0.67s] Target X: 625.00
+[0.78s] Target X: 625.00
+[0.87s] Target X: 616.00
+[0.95s] Target X: 616.00
+[1.04s] Target X: 615.00
+[1.13s] Target X: 610.00
+[1.26s] Target X: 610.00
+[1.35s] Target X: 603.00
+[1.44s] Target X: 602.00
+[1.54s] Target X: 595.00
+[1.63s] Target X: 593.00
+[1.74s] Target X: 590.00
+[1.82s] Target X: 583.00
+[1.92s] Target X: 586.00
+[2.00s] Target X: 577.00
+[2.09s] Target X: 575.00
+[2.22s] Target X: 572.00
+[2.31s] Target X: 570.00
+[2.39s] Target X: 575.00
+[2.48s] Target X: 574.00
+[2.57s] Target X: 570.00
+[2.69s] Target X: 569.00
+[2.78s] Target X: 569.00
+[2.87s] Target X: 576.00
+[2.96s] Target X: 569.00
+[3.04s] Target X: 571.00
+[3.17s] Target X: 574.00
+[3.25s] Target X: 569.00
+[3.34s] Target X: 569.00
+[3.42s] Target X: 573.00
+[3.50s] Target X: 569.00
+[3.62s] Target X: 570.00
+[3.71s] Target X: 567.00
+[3.81s] Target X: 510.00
+[3.90s] Target X: 574.00
+[3.99s] Target X: 570.00
+[4.11s] Target X: 570.00
+[4.20s] Target X: 566.00
+[4.29s] Target X: 569.00
+[4.38s] Target X: 572.00
+[4.47s] Target X: 571.00
+[4.60s] Target X: 568.00
+[4.68s] Target X: 573.00
+[4.77s] Target X: 574.00
+[4.86s] Target X: 581.00
+[4.95s] Target X: 581.00
+[5.07s] Target X: 586.00
+[5.15s] Target X: 588.00
+[5.24s] Target X: 592.00
+[5.33s] Target X: 593.00
+[5.41s] Target X: 598.00
+[5.52s] Target X: 605.00
+[5.61s] Target X: 606.00
+[5.70s] Target X: 609.00
+[5.79s] Target X: 612.00
+[5.87s] Target X: 616.00
+[5.99s] Target X: 618.00
+[6.08s] Target X: 622.00
+[6.16s] Target X: 629.00
+[6.25s] Target X: 639.00
+[6.34s] Target X: 639.00
+[6.46s] Target X: 643.00
+[6.55s] Target X: 640.00
+[6.64s] Target X: 640.00
+[6.73s] Target X: 642.00
+[6.82s] Target X: 642.00
+[6.95s] Target X: 639.00
+[7.04s] Target X: 637.00
+[7.12s] Target X: 635.00
+[7.21s] Target X: 631.00
+[7.30s] Target X: 627.00
+[7.42s] Target X: 623.00
+[7.51s] Target X: 619.00
+[7.60s] Target X: 614.00
+[7.69s] Target X: 610.00
+[7.78s] Target X: 609.00
+[7.90s] Target X: 607.00
+[7.99s] Target X: 602.00
+[8.07s] Target X: 600.00
+[8.17s] Target X: 598.00
+[8.26s] Target X: 593.00
+[8.38s] Target X: 589.00
+[8.47s] Target X: 585.00
+[8.56s] Target X: 578.00
+[8.64s] Target X: 583.00
+[8.73s] Target X: 586.00
+[8.85s] Target X: 575.00
+[8.94s] Target X: 571.00
+[9.03s] Target X: 571.00
+[9.12s] Target X: 579.00
+[9.20s] Target X: 580.00
+[9.33s] Target X: 578.00
+[9.42s] Target X: 579.00
+[9.51s] Target X: 579.00
+[9.60s] Target X: 569.00
+[9.69s] Target X: 573.00
+[9.82s] Target X: 572.00
+[9.92s] Target X: 566.00
+[10.01s] Target X: 570.00
+[10.10s] Target X: 570.00
+[10.19s] Target X: 579.00
+[10.31s] Target X: 579.00
+[10.40s] Target X: 570.00
+[10.49s] Target X: 571.00
+[10.59s] Target X: 572.00
+[10.68s] Target X: 578.00
+[10.79s] Target X: 570.00
+[10.88s] Target X: 565.00
+[10.97s] Target X: 573.00
+[11.06s] Target X: 570.00
+[11.14s] Target X: 571.00
+[11.27s] Target X: 570.00
+[11.36s] Target X: 577.00
+[11.44s] Target X: 574.00
+[11.53s] Target X: 581.00
+[11.62s] Target X: 579.00
+[11.74s] Target X: 590.00
+[11.83s] Target X: 592.00
+[11.92s] Target X: 592.00
+[12.01s] Target X: 593.00
+[12.10s] Target X: 597.00
+[12.22s] Target X: 599.00
+[12.31s] Target X: 608.00
+[12.39s] Target X: 608.00
+[12.47s] Target X: 612.00
+[12.56s] Target X: 614.00
+[12.68s] Target X: 619.00
+[12.76s] Target X: 624.00
+[12.85s] Target X: 628.00
+[12.94s] Target X: 642.00
+[13.03s] Target X: 642.00
+[13.16s] Target X: 639.00
+[13.24s] Target X: 641.00
+[13.33s] Target X: 640.00
+[13.41s] Target X: 641.00
+[13.50s] Target X: 639.00
+[13.62s] Target X: 640.00
+[13.71s] Target X: 637.00
+[13.81s] Target X: 635.00
+[13.90s] Target X: 629.00
+[13.99s] Target X: 625.00
+[14.10s] Target X: 622.00
+[14.19s] Target X: 618.00
+[14.27s] Target X: 617.00
+[14.36s] Target X: 613.00
+[14.44s] Target X: 613.00
+[14.56s] Target X: 605.00
+[14.65s] Target X: 603.00
+[14.74s] Target X: 599.00
+[14.83s] Target X: 597.00
+[14.91s] Target X: 595.00
+[15.04s] Target X: 588.00
+Auto-tuned X threshold: 590.88 (valley=566.33, peak=607.25)
+Stable breathing window detected at 1745417657.38s
+Step 2: Sending Y/Z position phase 1.
+The desired Y and Z positions for gantry are: 80, 80
+Target set to: 169, 80, 80
+SENT: GOTO 169 80 80
+Step 3: Sending theta to end effector.
+SENT: ROTATE 120.00 0.00
+Waiting for stable window — delaying 0.00s
+Stable window reached. Proceeding with injection.
+Step 4a: Injecting gantry.
+Injecting...
+Step 4b: Injecting both.
+Injecting...
+Injecting...
+Step 4c: Retracting sample.
+Injecting...
+SENT: ROTATE 0.00 0.00
+Sequence complete.
+Starting shutdown sequence...
+Stopping gantry...
+Shutting down Camera 1 (CSI)...
+GST_ARGUS: Cleaning up
+CONSUMER: Done Success
+GST_ARGUS: Done Success
+Shutting down Camera 2 (CSI)...
+GST_ARGUS: Cleaning up
+CONSUMER: Done Success
+GST_ARGUS: Done Success
+Final cleanup...
