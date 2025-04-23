@@ -793,7 +793,8 @@ if __name__ == "__main__":
                 if count == min_consecutive:
                     # stable_start_time = times[i - min_consecutive + 1]
                     stable_index = i - min_consecutive + 1
-                    stable_start_time = breath_capture_start + times[stable_index]  # absolute time
+                    time_since_capture_end = t_array[-1] - times[stable_index]
+                    stable_start_time = time.time() + time_since_capture_end
                     print(f"Stable breathing window detected at {stable_start_time:.2f}s")
                     break
             else:
