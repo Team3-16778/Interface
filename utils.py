@@ -769,39 +769,36 @@ if __name__ == "__main__":
     from scipy.ndimage import gaussian_filter1d
     x_vals_smooth = gaussian_filter1d(x_vals, sigma=2)
 
-    # === Detect valleys (bottoms) ===
+    # === Auto-tune threshold using peak and valley stats ===
     from scipy.signal import find_peaks
+    peaks, _ = find_peaks(x_vals_smooth, distance=10, prominence=1)
     valleys, _ = find_peaks(-x_vals_smooth, distance=10, prominence=1)
 
-    if len(valleys) >= 1:
-        valley_times = times[valleys]
-        print(f"Detected breathing valleys at times: {[f'{t:.2f}s' for t in valley_times]}")
-    else:
-        print("No valleys found in smoothed signal.")
-
-    # === Compute derivative to find flat segments ===
-    dx = np.gradient(x_vals_smooth, times)
-    still_thresh = 1.0  # pixel/s
-    still_indices = np.where(np.abs(dx) < still_thresh)[0]
-
-    # === Group low-motion segments ===
-    from itertools import groupby
-    from operator import itemgetter
-
     stable_start_time = None
-    groups = []
-    for k, g in groupby(enumerate(still_indices), lambda i_x: i_x[0] - i_x[1]):
-        group = list(map(itemgetter(1), g))
-        if len(group) >= 30:  # At ~20 FPS, 30 samples = 1.5s
-            groups.append(group)
-
-    # === Pick best group ===
-    if groups:
-        best_group = max(groups, key=len)
-        stable_start_time = times[best_group[0]]
-        print(f"Detected stable breathing window start time: {stable_start_time:.2f}s")
+    if len(peaks) == 0 or len(valleys) == 0:
+        print("Not enough peaks/valleys to determine threshold. Proceeding without timing.")
     else:
-        print("No stable breathing window detected. Proceeding without timing.")
+        peak_mean = np.mean(x_vals_smooth[peaks])
+        valley_mean = np.mean(x_vals_smooth[valleys])
+        alpha = 0.6
+        x_thresh = valley_mean + alpha * (peak_mean - valley_mean)
+        print(f"Auto-tuned X threshold: {x_thresh:.2f} (valley={valley_mean:.2f}, peak={peak_mean:.2f})")
+
+        # Find 5 consecutive frames above threshold
+        min_consecutive = 5
+        count = 0
+        for i, val in enumerate(x_vals_smooth):
+            if val > x_thresh:
+                count += 1
+                if count == min_consecutive:
+                    stable_start_time = times[i - min_consecutive + 1]
+                    print(f"Stable breathing window detected at {stable_start_time:.2f}s")
+                    break
+            else:
+                count = 0
+
+    if stable_start_time is None:
+        print("No stable breathing window detected via dynamic threshold.")
         print("Captured X values:", x_array.tolist())
 
 
