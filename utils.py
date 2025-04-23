@@ -821,7 +821,8 @@ if __name__ == "__main__":
     time.sleep(5)
 
     # === Wait for stable breathing window ===
-    print("Waiting for live stable breathing window...")
+    print("Waiting for live valley-to-peak breathing window...")
+    entered_valley = False
     consecutive = 0
     max_wait = 10  # seconds
     start_wait = time.time()
@@ -832,16 +833,24 @@ if __name__ == "__main__":
         if target:
             target_x, _ = target
             print(f"[{time.time() - start_wait:.2f}s] Live X: {target_x:.2f}")
-            if target_x > x_thresh:
-                consecutive += 1
-                if consecutive >= 5:
-                    print("Stable breathing window reached (live). Proceeding with injection.")
-                    break
+
+            if not entered_valley:
+                if target_x < x_thresh:
+                    print("Valley detected, now watching for peak rise...")
+                    entered_valley = True
             else:
-                consecutive = 0
+                if target_x > x_thresh:
+                    consecutive += 1
+                    if consecutive >= 5:
+                        print("Stable rise out of valley detected. Proceeding with injection.")
+                        break
+                else:
+                    consecutive = 0
         time.sleep(0.05)
+
     else:
-        print("Timeout waiting for stable window — injecting anyway.")
+        print("Timeout waiting for stable valley-to-peak transition — injecting anyway.")
+
 
     # === STEP 4: Injection Sequence ===
     print("Step 4a: Injecting gantry.")
