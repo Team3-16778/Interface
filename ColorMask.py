@@ -292,6 +292,10 @@ class ColorMask(QWidget):
         self.raise_()
         self.activateWindow()
 
+    def closeEvent(self, event):
+        self.timer.stop()
+        event.accept()
+
 
 if __name__ == "__main__":
     app = QApplication(sys.argv)
