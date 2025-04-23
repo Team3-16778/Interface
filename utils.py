@@ -791,7 +791,9 @@ if __name__ == "__main__":
             if val > x_thresh:
                 count += 1
                 if count == min_consecutive:
-                    stable_start_time = times[i - min_consecutive + 1]
+                    # stable_start_time = times[i - min_consecutive + 1]
+                    stable_index = i - min_consecutive + 1
+                    stable_start_time = breath_capture_start + times[stable_index]  # absolute time
                     print(f"Stable breathing window detected at {stable_start_time:.2f}s")
                     break
             else:
@@ -819,14 +821,12 @@ if __name__ == "__main__":
 
     # === WAIT for stable breathing window ===
     if stable_start_time is not None:
-        now = time.time() - breath_capture_start
+        now = time.time()
         delay = stable_start_time - now
         print(f"Waiting for stable window — delaying {max(delay,0):.2f}s")
         if delay > 0:
             time.sleep(delay)
         print("Stable window reached. Proceeding with injection.")
-    else:
-        print("Proceeding with injection immediately.")
 
     # === STEP 4: Injection Sequence ===
     print("Step 4a: Injecting gantry.")
