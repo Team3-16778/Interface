@@ -699,6 +699,8 @@ if __name__ == "__main__":
     manager.gantry.goto_position(175, 260, 140)
     manager.set_blind_vals(175, 260, 140)
 
+    time.sleep(5)
+
     # Start cameras and processing
     manager.camera1.start()
     manager.camera1.camera.processing_active = True
@@ -729,6 +731,22 @@ if __name__ == "__main__":
 
     time.sleep(1)
 
+    # === STEP 2: Move to Y/Z ===
+    print("Step 2: Sending Y/Z position phase 1.")
+    alignment_active = False
+    gantry_des_y = 80
+    gantry_des_z = 80
+    print(f"The desired Y and Z positions for gantry are: {gantry_des_y}, {gantry_des_z}")
+    manager.send_yz_position(y=int(gantry_des_y), z=int(gantry_des_z))
+    time.sleep(10)
+
+    # === STEP 3: Send theta ===
+    print("Step 3: Sending theta to end effector.")
+    manager.send_theta_to_effector(theta=120.0, delta=0.0)
+    time.sleep(5)
+
+
+    # === BREATHING CAPTURE PHASE ===
     manager.camera2.start()
     manager.camera2.camera.processing_active = True
     manager.camera2.detection_active = True
@@ -736,7 +754,6 @@ if __name__ == "__main__":
 
     time.sleep(1)
 
-    # === BREATHING CAPTURE PHASE ===
     print("Capturing breathing motion for stability window using Camera 2...")
     breathing_x_values = []
     timestamps = []
@@ -804,20 +821,6 @@ if __name__ == "__main__":
         print("No stable breathing window detected. Proceeding without timing.")
         print("Captured X values:", x_array.tolist())
 
-
-    # === STEP 2: Move to Y/Z ===
-    print("Step 2: Sending Y/Z position phase 1.")
-    alignment_active = False
-    gantry_des_y = 80
-    gantry_des_z = 80
-    print(f"The desired Y and Z positions for gantry are: {gantry_des_y}, {gantry_des_z}")
-    manager.send_yz_position(y=int(gantry_des_y), z=int(gantry_des_z))
-    time.sleep(10)
-
-    # === STEP 3: Send theta ===
-    print("Step 3: Sending theta to end effector.")
-    manager.send_theta_to_effector(theta=120.0, delta=0.0)
-    time.sleep(5)
 
     # === WAIT for stable breathing window ===
     if stable_start_time is not None:
