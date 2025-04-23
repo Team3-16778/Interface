@@ -820,14 +820,28 @@ if __name__ == "__main__":
     manager.send_theta_to_effector(theta=120.0, delta=0.0)
     time.sleep(5)
 
-    # === WAIT for stable breathing window ===
-    if stable_start_time is not None:
-        now = time.time()
-        delay = stable_start_time - now
-        print(f"Waiting for stable window — delaying {max(delay,0):.2f}s")
-        if delay > 0:
-            time.sleep(delay)
-        print("Stable window reached. Proceeding with injection.")
+    # === Wait for stable breathing window ===
+    print("Waiting for live stable breathing window...")
+    consecutive = 0
+    max_wait = 10  # seconds
+    start_wait = time.time()
+
+    while time.time() - start_wait < max_wait:
+        manager.camera2.update_frame()
+        target = manager.camera2.camera.get_center_of_mask()
+        if target:
+            target_x, _ = target
+            print(f"[{time.time() - start_wait:.2f}s] Live X: {target_x:.2f}")
+            if target_x > x_thresh:
+                consecutive += 1
+                if consecutive >= 5:
+                    print("Stable breathing window reached (live). Proceeding with injection.")
+                    break
+            else:
+                consecutive = 0
+        time.sleep(0.05)
+    else:
+        print("Timeout waiting for stable window — injecting anyway.")
 
     # === STEP 4: Injection Sequence ===
     print("Step 4a: Injecting gantry.")
