@@ -129,19 +129,33 @@ class InterfaceLite(QMainWindow):
         # Position X btn
         self.position_x_btn = QPushButton("Positional X")
         self.position_x_btn.clicked.connect(self.position_x)
-        gantry_layout.addWidget(self.position_x_btn, 5, 0, 1, 3)
+        gantry_layout.addWidget(self.position_x_btn, 6, 0, 1, 3)
         self.position_x_timer = QTimer(self)
         self.position_x_timer.timeout.connect(self.position_x_sender)
 
         # Homing btn
         self.gantry_home_btn = QPushButton("HOME")
         self.gantry_home_btn.clicked.connect(self.gantry_home)
-        gantry_layout.addWidget(self.gantry_home_btn, 6, 0, 1, 3)
+        gantry_layout.addWidget(self.gantry_home_btn, 5, 0, 1, 3)
 
         # Inject all btn
         self.inject_all_btn = QPushButton("INJECT ALL")
         self.inject_all_btn.clicked.connect(self.inject_all)
         gantry_layout.addWidget(self.inject_all_btn, 7, 0, 1, 3)
+
+        # liver biopsy btn
+        self.liver_biopsy_btn = QPushButton("LIVER BIOPSY")
+
+        self.liver_biopsy_btn.setStyleSheet("""
+            QPushButton {
+                color: red;
+                font-size: 22px;
+                font-weight: bold;
+                min-height: 80px;
+            }
+        """)
+        self.liver_biopsy_btn.clicked.connect(self.liver_biopsy)
+        gantry_layout.addWidget(self.liver_biopsy_btn, 8, 0, 1, 3)
 
         control_layout.addWidget(self.gantry_group)
 
@@ -458,6 +472,183 @@ class InterfaceLite(QMainWindow):
         print("Step 4c: Retracting sample.")
         self.hw.gantry.injectC()
         time.sleep(10)
+
+    def liver_biopsy(self):
+        manager = self.hw
+
+        # Move to X start and set blind values
+        manager.gantry.goto_position(175, 260, 140)
+        manager.set_blind_vals(175, 260, 140)
+
+        # Start cameras and processing
+        manager.camera1.start()
+        manager.camera1.camera.processing_active = True
+        manager.camera1.detection_active = True
+        manager.camera1.gui_active = True
+
+        # Alignment loop
+        print("Beginning alignment loop...")
+        alignment_active = True
+        start_time = time.time()
+        center_y = manager.camera1.camera.height // 2
+        timeout = 35
+
+        while True:
+            manager.camera1.update_frame()
+            if manager.camera1.camera.target_found:
+                _, target_y = manager.camera1.camera.get_center_of_mask()
+                if abs(target_y - center_y) < 15:
+                    print("Target aligned — exiting alignment loop.")
+                    break
+
+            if time.time() - start_time > timeout:
+                print("Alignment timeout — proceeding to next step.")
+                break
+
+            manager.blind_x_control()
+            time.sleep(0.5)
+
+        time.sleep(1)
+
+        manager.camera2.start()
+        manager.camera2.camera.processing_active = True
+        manager.camera2.detection_active = True
+        manager.camera2.gui_active = True
+
+        time.sleep(1)
+
+        # === BREATHING CAPTURE PHASE ===
+        print("Capturing breathing motion for stability window using Camera 2...")
+        breathing_x_values = []
+        timestamps = []
+        breathing_duration = 15  # Two full cycles
+        breath_capture_start = time.time()
+
+        while time.time() - breath_capture_start < breathing_duration:
+            manager.camera2.update_frame()
+            target = manager.camera2.camera.get_center_of_mask()
+            if target:
+                target_x, _ = target
+                breathing_x_values.append(target_x)
+                timestamps.append(time.time() - breath_capture_start)
+                print(f"[{time.time() - breath_capture_start:.2f}s] Target X: {target_x:.2f}")
+            time.sleep(0.05)
+
+        # Convert to numpy arrays
+        x_array = np.array(breathing_x_values)
+        t_array = np.array(timestamps)
+
+        # === Dynamically filter outliers (MAD-based) ===
+        median = np.median(x_array)
+        mad = np.median(np.abs(x_array - median))
+        z_thresh = 5.0
+        valid_mask = np.abs(x_array - median) / (mad + 1e-6) < z_thresh
+        x_vals = x_array[valid_mask]
+        times = t_array[valid_mask]
+
+        # === Smooth X values ===
+        from scipy.ndimage import gaussian_filter1d
+        x_vals_smooth = gaussian_filter1d(x_vals, sigma=2)
+
+        # === Auto-tune threshold using peak and valley stats ===
+        from scipy.signal import find_peaks
+        peaks, _ = find_peaks(x_vals_smooth, distance=10, prominence=1)
+        valleys, _ = find_peaks(-x_vals_smooth, distance=10, prominence=1)
+
+        stable_start_time = None
+        if len(peaks) == 0 or len(valleys) == 0:
+            print("Not enough peaks/valleys to determine threshold. Proceeding without timing.")
+        else:
+            peak_mean = np.mean(x_vals_smooth[peaks])
+            valley_mean = np.mean(x_vals_smooth[valleys])
+            alpha = 0.6
+            x_thresh = valley_mean + alpha * (peak_mean - valley_mean)
+            print(f"Auto-tuned X threshold: {x_thresh:.2f} (valley={valley_mean:.2f}, peak={peak_mean:.2f})")
+
+            # Find 5 consecutive frames above threshold
+            min_consecutive = 5
+            count = 0
+            for i, val in enumerate(x_vals_smooth):
+                if val > x_thresh:
+                    count += 1
+                    if count == min_consecutive:
+                        # stable_start_time = times[i - min_consecutive + 1]
+                        stable_index = i - min_consecutive + 1
+                        time_since_capture_end = t_array[-1] - times[stable_index]
+                        stable_start_time = time.time() + time_since_capture_end
+                        print(f"Stable breathing window detected at {stable_start_time:.2f}s")
+                        break
+                else:
+                    count = 0
+
+        if stable_start_time is None:
+            print("No stable breathing window detected via dynamic threshold.")
+            print("Captured X values:", x_array.tolist())
+
+
+        # === STEP 2: Move to Y/Z ===
+        print("Step 2: Sending Y/Z position phase 1.")
+        alignment_active = False
+        gantry_des_y = 80
+        # gantry_des_z = 80 # test
+        gantry_des_z = 170 # real
+        print(f"The desired Y and Z positions for gantry are: {gantry_des_y}, {gantry_des_z}")
+        manager.send_yz_position(y=int(gantry_des_y), z=int(gantry_des_z))
+        time.sleep(10)
+
+        # === STEP 3: Send theta ===
+        print("Step 3: Sending theta to end effector.")
+        manager.send_theta_to_effector(theta=120.0, delta=0.0)
+        time.sleep(5)
+
+        # === Wait for stable breathing window ===
+        print("Waiting for live valley-to-peak breathing window...")
+        entered_valley = False
+        consecutive = 0
+        max_wait = 10  # seconds
+        start_wait = time.time()
+
+        while time.time() - start_wait < max_wait:
+            manager.camera2.update_frame()
+            target = manager.camera2.camera.get_center_of_mask()
+            if target:
+                target_x, _ = target
+                print(f"[{time.time() - start_wait:.2f}s] Live X: {target_x:.2f}")
+
+                if not entered_valley:
+                    if target_x < x_thresh:
+                        print("Valley detected, now watching for peak rise...")
+                        entered_valley = True
+                else:
+                    if target_x > x_thresh:
+                        consecutive += 1
+                        if consecutive >= 5:
+                            print("Stable rise out of valley detected. Proceeding with injection.")
+                            break
+                    else:
+                        consecutive = 0
+            time.sleep(0.05)
+
+        else:
+            print("Timeout waiting for stable valley-to-peak transition — injecting anyway.")
+
+
+        # === STEP 4: Injection Sequence ===
+        print("Step 4a: Injecting gantry.")
+        manager.gantry.injectA()
+        time.sleep(2)
+
+        print("Step 4b: Injecting both.")
+        manager.inject_all()
+        time.sleep(2.5)
+
+        print("Step 4c: Retracting sample.")
+        manager.gantry.injectC()
+        time.sleep(10)
+
+        # === STEP 5: Reset rotation ===
+        manager.send_theta_to_effector(theta=0.0, delta=0.0)
+        print("Sequence complete.")
 
 
 

@@ -558,36 +558,6 @@ class HardwareManager:
             print("Shutting down Camera 2...")
             self.camera2.stop()
         
-        # Additional cleanup
-        print("Final cleanup...")
-        try:
-            import os
-            os.system("sudo systemctl restart nvargus-daemon")
-            time.sleep(2)  # Let it settle
-            cap = cv2.VideoCapture("nvarguscamerasrc ! video/x-raw(memory:NVMM), width=1280, height=720, framerate=30/1 ! nvvidconv ! video/x-raw, format=BGRx ! videoconvert ! appsink")
-            cv2.destroyAllWindows()
-
-            import gc
-
-            def release(self):
-                if not self._is_capturing:
-                    return
-
-                if self.cap is not None:
-                    self.cap.release()
-                    self.cap = None
-                    gc.collect()  # Force cleanup
-
-                self._is_capturing = False
-                self.latest_frame = None
-            
-            release(self)
-                
-        except Exception as e:
-            print(f"Error during final cleanup: {e}")
-
-            
-        
         print("Shutdown complete")
 
     def x_axis_controller(self):
