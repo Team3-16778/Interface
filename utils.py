@@ -184,8 +184,10 @@ class Camera:
             Zc: depth of the target in the camera frame (distance from the camera to the target)
         Output:
             world_point: 3D coordinates of the target in the world frame
+        Note: the image is captured using mode 4(1280x720), so we need to transfer to u,v coordinate in mode 0(3280x2464).
+            (Detailed information is in the repo: computer_vision)
         """
-        # Get the parameters we need: focal length, principal point, and rotation vector and translation vector
+        # 1. Get the parameters(mode0) we need: focal length, principal point, and rotation vector and translation vector
         camera_matrix = self.camera_intrinsics["camera_matrix"]
         fx = camera_matrix[0, 0]
         fy = camera_matrix[1, 1]
@@ -193,18 +195,23 @@ class Camera:
         cy = camera_matrix[1, 2]
         Rotation_matrix = self.camera_extrinsics[0:3, 0:3]
         Translation_vector = self.camera_extrinsics[0:3, 3].reshape(3, 1)
+        # 2. Transfer parameters and make uv transformation
+        # Parameters from transfering function(calculate_mode_transfer.py)
+        scale_x = 0.50049686
+        scale_y = 0.5006737
+        offset_x = 361.1
+        offset_y = 513.5
 
-        # 4. Compute the 3D coordinates of the target in the camera frame
-        Xc = (u - cx) * Zc / fx
-        Yc = (v - cy) * Zc / fy
+        u_mode0 = u / scale_x + offset_x
+        v_mode0 = v / scale_y + offset_y
+
+        # 3. Compute the 3D coordinates of the target in the camera frame
+        Xc = (u_mode0 - cx) * Zc / fx
+        Yc = (v_mode0 - cy) * Zc / fy
         camera_point = np.array([[Xc], [Yc], [Zc]])
 
-        # 5. Compute the 3D coordinates of the target in the world frame
-        # Method 1: external parameters is T_world_camera
+        # 5. Compute the 3D coordinates of the target in the world frame (external parameters is T_world_camera)
         world_point = Rotation_matrix @ camera_point + Translation_vector
-
-        # Method 2: external parameters is T_camera_world
-        # world_point = Rotation_matrix.T @ (camera_point - Translation_vector)
 
         return world_point.flatten()
 
