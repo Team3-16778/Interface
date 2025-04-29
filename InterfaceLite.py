@@ -477,6 +477,10 @@ class InterfaceLite(QMainWindow):
     def liver_biopsy(self):
         manager = self.hw
 
+        # Home devices
+        manager.home_all()
+        time.sleep(35)
+
         # Move to X start and set blind values
         manager.gantry.goto_position(175, 260, 140)
         manager.set_blind_vals(175, 260, 140)
@@ -528,6 +532,7 @@ class InterfaceLite(QMainWindow):
         # === BREATHING CAPTURE PHASE ===
         print("Capturing breathing motion for stability window using Camera 2...")
         breathing_x_values = []
+        breathing_z_values = []
         timestamps = []
         breathing_duration = 15  # Two full cycles
         breath_capture_start = time.time()
@@ -536,14 +541,16 @@ class InterfaceLite(QMainWindow):
             manager.camera2.update_frame()
             target = manager.camera2.camera.get_center_of_mask()
             if target:
-                target_x, _ = target
+                target_x, target_z = target
                 breathing_x_values.append(target_x)
+                breathing_z_values.append(target_z)
                 timestamps.append(time.time() - breath_capture_start)
                 print(f"[{time.time() - breath_capture_start:.2f}s] Target X: {target_x:.2f}")
             time.sleep(0.05)
 
         # Convert to numpy arrays
         x_array = np.array(breathing_x_values)
+        z_array = np.array(breathing_z_values)
         t_array = np.array(timestamps)
 
         # === Dynamically filter outliers (MAD-based) ===
@@ -564,6 +571,7 @@ class InterfaceLite(QMainWindow):
         valleys, _ = find_peaks(-x_vals_smooth, distance=10, prominence=1)
 
         stable_start_time = None
+        valley_mean = None
         if len(peaks) == 0 or len(valleys) == 0:
             print("Not enough peaks/valleys to determine threshold. Proceeding without timing.")
         else:
@@ -597,9 +605,31 @@ class InterfaceLite(QMainWindow):
         # === STEP 2: Move to Y/Z ===
         print("Step 2: Sending Y/Z position phase 1.")
         alignment_active = False
-        gantry_des_y = 80
-        # gantry_des_z = 80 # test
-        gantry_des_z = 170 # real
+        use_preset_yz = False
+        if use_preset_yz or valley_mean == None:
+            gantry_des_y = 80
+            # gantry_des_z = 80 # test
+            gantry_des_z = 170 # real
+        else:
+            # # Test
+            # u_target_valley = 623
+            # v_target_mean = 440
+            # dis_cam2target = 300
+            # Real
+            v_target_mean = np.mean(z_array)
+            u_target_valley = valley_mean
+            dis_cam2target = manager.current_x + 67 + 170 # mm, 67 is cam2->gantry x0, 170 is needle->gantry x0
+            target_world = self.camera2.camera.get_world_3d(u_target_valley, v_target_mean, dis_cam2target/1000) # unit: m
+            print("-"*10, target_world,"-"*10)
+            target_world_y = target_world[0]*1000 + 273 # mm, 273 is ArUco_tag_0 -> gantry y0
+            target_world_z = - target_world[1]*1000 + 50 # mm, 50 is ArUco_tag_0 -> gantry z0
+            needle_length = 276.0 + 40.0 # mm, 276 from rotation center to external end, 40 is the injection of internal
+            inject_move = 50.0 / 1.732 * 2 # 50 from INJECTA in Gantry_control.ino 
+            # ee_2_y0 = 96, ee_2_z0 = 40 (below z0)
+
+            gantry_des_y = target_world_y - (needle_length + inject_move) / 2.0 * 1.732 - 96
+            gantry_des_z = target_world_z - (needle_length + inject_move) / 2.0 + 40
+
         print(f"The desired Y and Z positions for gantry are: {gantry_des_y}, {gantry_des_z}")
         manager.send_yz_position(y=int(gantry_des_y), z=int(gantry_des_z))
         time.sleep(10)
