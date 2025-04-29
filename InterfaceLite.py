@@ -1,5 +1,5 @@
 import sys
-import re
+import os
 import serial
 from serial.tools import list_ports
 import time
@@ -186,11 +186,12 @@ class InterfaceLite(QMainWindow):
 
         # Sliders for Theta, Delta
         eff_labels = ["Theta", "Delta"]
+        eff_range = [[0,180],[0,1]]
         for i, lbl in enumerate(eff_labels):
             row = i + 2
             label = QLabel(lbl)
             slider = QSlider(Qt.Orientation.Horizontal)
-            slider.setRange(0, 180)      # example range, adjust as needed
+            slider.setRange(eff_range[i][0], eff_range[i][1])      # example range, adjust as needed
             slider.setValue(0)           # default
             slider.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Fixed)
 
@@ -480,7 +481,7 @@ class InterfaceLite(QMainWindow):
         manager.gantry.goto_position(175, 260, 140)
         manager.set_blind_vals(175, 260, 140)
 
-        # Start cameras and processing
+        # Start camera1 and processing
         manager.camera1.start()
         manager.camera1.camera.processing_active = True
         manager.camera1.detection_active = True
@@ -510,10 +511,17 @@ class InterfaceLite(QMainWindow):
 
         time.sleep(1)
 
+        # Start Camera2 and add internal&external parameters
         manager.camera2.start()
         manager.camera2.camera.processing_active = True
         manager.camera2.detection_active = True
         manager.camera2.gui_active = True
+
+        dir_path = os.path.dirname(os.path.realpath(__file__))
+        camera_internal_file = dir_path + "/camera2_calibration_data.npz"
+        manager.camera2.camera.camera_intrinsics = np.load(camera_internal_file)
+        camera_external_file = dir_path + "/cam2_external_parameters_0424.npz"
+        manager.camera2.camera.camera_extrinsics = np.load(camera_external_file)["T_world_camera"]
 
         time.sleep(1)
 
