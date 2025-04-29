@@ -297,9 +297,6 @@ class InterfaceLite(QMainWindow):
         # Detection state
         self.detection_active = False
 
-
-
-
     ###### CAMERA GUI CONTROLS #####
 
     def toggle_cameras(self, checked):
@@ -427,8 +424,6 @@ class InterfaceLite(QMainWindow):
 
             manager.blind_x_control()
             time.sleep(0.5)
-    
- 
 
     def position_x_sender(self):
         # pixel: y 0-400, set cy=200
