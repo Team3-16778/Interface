@@ -600,9 +600,9 @@ class InterfaceLite(QMainWindow):
         # === STEP 2: Move to Y/Z ===
         print("Step 2: Sending Y/Z position phase 1.")
         alignment_active = False
-        use_preset_yz = False
+        use_preset_yz = True
         if use_preset_yz or valley_mean == None:
-            gantry_des_y = 80
+            gantry_des_y = 90
             # gantry_des_z = 80 # test
             gantry_des_z = 170 # real
         else:
