@@ -472,9 +472,9 @@ class InterfaceLite(QMainWindow):
     def liver_biopsy(self):
         manager = self.hw
 
-        # Home devices
-        manager.home_all()
-        time.sleep(35)
+        # # Home devices
+        # manager.home_all()
+        # time.sleep(35)
 
         # Move to X start and set blind values
         manager.gantry.goto_position(175, 260, 140)
@@ -602,7 +602,7 @@ class InterfaceLite(QMainWindow):
         alignment_active = False
         use_preset_yz = True
         if use_preset_yz or valley_mean == None:
-            gantry_des_y = 90
+            gantry_des_y = 80
             # gantry_des_z = 80 # test
             gantry_des_z = 170 # real
         else:
