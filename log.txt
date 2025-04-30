@@ -1,0 +1,731 @@
+orin-nano@orin:~$ cd DdaVinci/Interface/
+orin-nano@orin:~/DdaVinci/Interface$ git pull
+remote: Enumerating objects: 5, done.
+remote: Counting objects: 100% (5/5), done.
+remote: Compressing objects: 100% (1/1), done.
+remote: Total 3 (delta 2), reused 3 (delta 2), pack-reused 0 (from 0)
+Unpacking objects: 100% (3/3), 306 bytes | 51.00 KiB/s, done.
+From https://github.com/Team3-16778/Interface
+   10dd8c8..a567c83  main       -> origin/main
+Updating 10dd8c8..a567c83
+Fast-forward
+ InterfaceLite.py | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)
+orin-nano@orin:~/DdaVinci/Interface$ python InterfaceLite.py 
+[INFO] Loaded HSV params from Camera 1_hsv_params.npy
+[INFO] Loaded HSV params from Camera 2_hsv_params.npy
+Initialized Gantry on /dev/ttyACM0 at 9600 baud.
+Initialized EndEffector on /dev/ttyACM1 at 9600 baud.
+Starting shutdown sequence...
+Stopping gantry...
+Shutting down Camera 1 (CSI)...
+Shutting down Camera 2 (CSI)...
+Shutdown complete
+Homing device...
+Homing device...
+nvarguscamerasrc sensor-id=0 ! video/x-raw(memory:NVMM), width=1280, height=720, format=(string)NV12, framerate=(fraction)60/1 ! nvvidconv ! video/x-raw, format=(string)BGRx ! videoconvert ! video/x-raw, format=(string)BGR ! appsink drop=1
+GST_ARGUS: Creating output stream
+CONSUMER: Waiting until producer is connected...
+GST_ARGUS: Available Sensor modes :
+GST_ARGUS: 3280 x 2464 FR = 21.000000 fps Duration = 47619048 ; Analog Gain range min 1.000000, max 10.625000; Exposure Range min 13000, max 683709000;
+
+GST_ARGUS: 3280 x 1848 FR = 28.000001 fps Duration = 35714284 ; Analog Gain range min 1.000000, max 10.625000; Exposure Range min 13000, max 683709000;
+
+GST_ARGUS: 1920 x 1080 FR = 29.999999 fps Duration = 33333334 ; Analog Gain range min 1.000000, max 10.625000; Exposure Range min 13000, max 683709000;
+
+GST_ARGUS: 1640 x 1232 FR = 29.999999 fps Duration = 33333334 ; Analog Gain range min 1.000000, max 10.625000; Exposure Range min 13000, max 683709000;
+
+GST_ARGUS: 1280 x 720 FR = 59.999999 fps Duration = 16666667 ; Analog Gain range min 1.000000, max 10.625000; Exposure Range min 13000, max 683709000;
+
+GST_ARGUS: Running with following settings:
+   Camera index = 0 
+   Camera mode  = 4 
+   Output Stream W = 1280 H = 720 
+   seconds to Run    = 0 
+   Frame Rate = 59.999999 
+GST_ARGUS: Setup Complete, Starting captures for 0 seconds
+GST_ARGUS: Starting repeat capture requests.
+CONSUMER: Producer has connected; continuing.
+[ WARN:0@36.067] global cap_gstreamer.cpp:1777 open OpenCV | GStreamer warning: Cannot query video position: status=0, value=-1, duration=-1
+nvarguscamerasrc sensor-id=1 ! video/x-raw(memory:NVMM), width=1280, height=720, format=(string)NV12, framerate=(fraction)60/1 ! nvvidconv ! video/x-raw, format=(string)BGRx ! videoconvert ! video/x-raw, format=(string)BGR ! appsink drop=1
+GST_ARGUS: Creating output stream
+CONSUMER: Waiting until producer is connected...
+GST_ARGUS: Available Sensor modes :
+GST_ARGUS: 3280 x 2464 FR = 21.000000 fps Duration = 47619048 ; Analog Gain range min 1.000000, max 10.625000; Exposure Range min 13000, max 683709000;
+
+GST_ARGUS: 3280 x 1848 FR = 28.000001 fps Duration = 35714284 ; Analog Gain range min 1.000000, max 10.625000; Exposure Range min 13000, max 683709000;
+
+GST_ARGUS: 1920 x 1080 FR = 29.999999 fps Duration = 33333334 ; Analog Gain range min 1.000000, max 10.625000; Exposure Range min 13000, max 683709000;
+
+GST_ARGUS: 1640 x 1232 FR = 29.999999 fps Duration = 33333334 ; Analog Gain range min 1.000000, max 10.625000; Exposure Range min 13000, max 683709000;
+
+GST_ARGUS: 1280 x 720 FR = 59.999999 fps Duration = 16666667 ; Analog Gain range min 1.000000, max 10.625000; Exposure Range min 13000, max 683709000;
+
+GST_ARGUS: Running with following settings:
+   Camera index = 1 
+   Camera mode  = 4 
+   Output Stream W = 1280 H = 720 
+   seconds to Run    = 0 
+   Frame Rate = 59.999999 
+GST_ARGUS: Setup Complete, Starting captures for 0 seconds
+GST_ARGUS: Starting repeat capture requests.
+CONSUMER: Producer has connected; continuing.
+[ WARN:0@36.273] global cap_gstreamer.cpp:1777 open OpenCV | GStreamer warning: Cannot query video position: status=0, value=-1, duration=-1
+[INFO] Saved HSV params to Camera 1_hsv_params.npy
+[INFO] Saved HSV params to Camera 1_hsv_params.npy
+[INFO] Saved HSV params to Camera 1_hsv_params.npy
+[INFO] Saved HSV params to Camera 2_hsv_params.npy
+Homing device...
+Homing device...
+SENT: ROTATE 0.00 0.00
+SENT: GOTO 175 260 140
+Target set to: 175, 260, 140
+Beginning alignment loop...
+Blind step to X: 173.00 (Target Y: 432)
+Target set to: 173, 260, 140
+SENT: GOTO 173 260 140
+Blind step to X: 171.00 (Target Y: 397)
+Target set to: 171, 260, 140
+SENT: GOTO 171 260 140
+Blind step to X: 173.00 (Target Y: 321)
+Target set to: 173, 260, 140
+SENT: GOTO 173 260 140
+Blind step to X: 175.00 (Target Y: 301)
+Target set to: 175, 260, 140
+SENT: GOTO 175 260 140
+Blind step to X: 177.00 (Target Y: 309)
+Target set to: 177, 260, 140
+SENT: GOTO 177 260 140
+Blind step to X: 179.00 (Target Y: 315)
+Target set to: 179, 260, 140
+SENT: GOTO 179 260 140
+Blind step to X: 181.00 (Target Y: 319)
+Target set to: 181, 260, 140
+SENT: GOTO 181 260 140
+Blind step to X: 183.00 (Target Y: 324)
+Target set to: 183, 260, 140
+SENT: GOTO 183 260 140
+Blind step to X: 185.00 (Target Y: 328)
+Target set to: 185, 260, 140
+SENT: GOTO 185 260 140
+Blind step to X: 187.00 (Target Y: 333)
+Target set to: 187, 260, 140
+SENT: GOTO 187 260 140
+Blind step to X: 189.00 (Target Y: 337)
+Target set to: 189, 260, 140
+SENT: GOTO 189 260 140
+Blind step to X: 191.00 (Target Y: 342)
+Target set to: 191, 260, 140
+SENT: GOTO 191 260 140
+Target aligned — exiting alignment loop.
+Capturing breathing motion for stability window using Camera 2...
+[0.06s] Target X: 651.00
+[0.16s] Target X: 653.00
+[0.29s] Target X: 651.00
+[0.38s] Target X: 654.00
+[0.47s] Target X: 655.00
+[0.56s] Target X: 654.00
+[0.65s] Target X: 654.00
+[0.77s] Target X: 655.00
+[0.86s] Target X: 652.00
+[0.94s] Target X: 647.00
+[1.03s] Target X: 645.00
+[1.11s] Target X: 642.00
+[1.24s] Target X: 636.00
+[1.32s] Target X: 634.00
+[1.41s] Target X: 627.00
+[1.50s] Target X: 622.00
+[1.59s] Target X: 618.00
+[1.71s] Target X: 615.00
+[1.80s] Target X: 606.00
+[1.88s] Target X: 603.00
+[1.97s] Target X: 600.00
+[2.06s] Target X: 597.00
+[2.18s] Target X: 591.00
+[2.26s] Target X: 587.00
+[2.35s] Target X: 582.00
+[2.44s] Target X: 583.00
+[2.52s] Target X: 583.00
+[2.64s] Target X: 581.00
+[2.73s] Target X: 581.00
+[2.81s] Target X: 581.00
+[2.90s] Target X: 584.00
+[2.99s] Target X: 583.00
+[3.11s] Target X: 582.00
+[3.19s] Target X: 583.00
+[3.28s] Target X: 583.00
+[3.37s] Target X: 581.00
+[3.46s] Target X: 582.00
+[3.57s] Target X: 583.00
+[3.66s] Target X: 587.00
+[3.74s] Target X: 586.00
+[3.83s] Target X: 580.00
+[3.92s] Target X: 586.00
+[4.03s] Target X: 583.00
+[4.12s] Target X: 582.00
+[4.20s] Target X: 584.00
+[4.29s] Target X: 583.00
+[4.38s] Target X: 580.00
+[4.49s] Target X: 582.00
+[4.57s] Target X: 583.00
+[4.66s] Target X: 582.00
+[4.76s] Target X: 583.00
+[4.85s] Target X: 581.00
+[4.97s] Target X: 582.00
+[5.06s] Target X: 580.00
+[5.14s] Target X: 586.00
+[5.23s] Target X: 586.00
+[5.32s] Target X: 589.00
+[5.44s] Target X: 594.00
+[5.52s] Target X: 605.00
+[5.61s] Target X: 606.00
+[5.70s] Target X: 611.00
+[5.78s] Target X: 613.00
+[5.91s] Target X: 622.00
+[5.99s] Target X: 627.00
+[6.07s] Target X: 633.00
+[6.16s] Target X: 637.00
+[6.25s] Target X: 642.00
+[6.38s] Target X: 650.00
+[6.46s] Target X: 655.00
+[6.55s] Target X: 654.00
+[6.63s] Target X: 649.00
+[6.72s] Target X: 650.00
+[6.84s] Target X: 651.00
+[6.92s] Target X: 649.00
+[7.00s] Target X: 644.00
+[7.09s] Target X: 654.00
+[7.18s] Target X: 653.00
+[7.30s] Target X: 655.00
+[7.38s] Target X: 655.00
+[7.46s] Target X: 653.00
+[7.55s] Target X: 652.00
+[7.63s] Target X: 647.00
+[7.75s] Target X: 645.00
+[7.84s] Target X: 639.00
+[7.93s] Target X: 639.00
+[8.01s] Target X: 630.00
+[8.10s] Target X: 628.00
+[8.23s] Target X: 623.00
+[8.32s] Target X: 617.00
+[8.40s] Target X: 612.00
+[8.48s] Target X: 607.00
+[8.57s] Target X: 604.00
+[8.68s] Target X: 602.00
+[8.77s] Target X: 593.00
+[8.85s] Target X: 591.00
+[8.94s] Target X: 586.00
+[9.02s] Target X: 580.00
+[9.15s] Target X: 582.00
+[9.23s] Target X: 581.00
+[9.32s] Target X: 580.00
+[9.41s] Target X: 579.00
+[9.50s] Target X: 583.00
+[9.62s] Target X: 580.00
+[9.71s] Target X: 579.00
+[9.79s] Target X: 579.00
+[9.89s] Target X: 580.00
+[9.97s] Target X: 582.00
+[10.10s] Target X: 582.00
+[10.18s] Target X: 584.00
+[10.27s] Target X: 581.00
+[10.35s] Target X: 581.00
+[10.44s] Target X: 582.00
+[10.57s] Target X: 581.00
+[10.65s] Target X: 582.00
+[10.74s] Target X: 580.00
+[10.83s] Target X: 581.00
+[10.92s] Target X: 583.00
+[11.04s] Target X: 583.00
+[11.12s] Target X: 583.00
+[11.21s] Target X: 584.00
+[11.30s] Target X: 582.00
+[11.39s] Target X: 584.00
+[11.52s] Target X: 584.00
+[11.60s] Target X: 588.00
+[11.69s] Target X: 581.00
+[11.78s] Target X: 585.00
+[11.87s] Target X: 587.00
+[11.99s] Target X: 591.00
+[12.07s] Target X: 598.00
+[12.16s] Target X: 601.00
+[12.24s] Target X: 603.00
+[12.33s] Target X: 615.00
+[12.45s] Target X: 610.00
+[12.54s] Target X: 624.00
+[12.62s] Target X: 626.00
+[12.71s] Target X: 629.00
+[12.80s] Target X: 634.00
+[12.91s] Target X: 640.00
+[13.00s] Target X: 647.00
+[13.09s] Target X: 654.00
+[13.18s] Target X: 652.00
+[13.27s] Target X: 653.00
+[13.40s] Target X: 653.00
+[13.48s] Target X: 653.00
+[13.58s] Target X: 651.00
+[13.66s] Target X: 653.00
+[13.75s] Target X: 650.00
+[13.87s] Target X: 653.00
+[13.95s] Target X: 653.00
+[14.04s] Target X: 655.00
+[14.13s] Target X: 655.00
+[14.22s] Target X: 652.00
+[14.34s] Target X: 647.00
+[14.42s] Target X: 643.00
+[14.50s] Target X: 638.00
+[14.59s] Target X: 635.00
+[14.68s] Target X: 631.00
+[14.80s] Target X: 627.00
+[14.88s] Target X: 622.00
+[14.97s] Target X: 618.00
+Auto-tuned X threshold: 620.30 (valley=598.25, peak=635.00)
+Stable breathing window detected at 1746022264.86s
+Step 2: Sending Y/Z position phase 1.
+The desired Y and Z positions for gantry are: 90, 170
+Target set to: 191, 90, 170
+SENT: GOTO 191 90 170
+Step 3: Sending theta to end effector.
+SENT: ROTATE 120.00 0.00
+Waiting for live valley-to-peak breathing window...
+[0.05s] Live X: 539.00
+Valley detected, now watching for peak rise...
+[0.15s] Live X: 541.00
+[0.27s] Live X: 544.00
+[0.36s] Live X: 551.00
+[0.45s] Live X: 554.00
+[0.54s] Live X: 557.00
+[0.63s] Live X: 564.00
+[0.75s] Live X: 567.00
+[0.83s] Live X: 573.00
+[0.92s] Live X: 578.00
+[1.01s] Live X: 584.00
+[1.11s] Live X: 587.00
+[1.23s] Live X: 592.00
+[1.31s] Live X: 599.00
+[1.40s] Live X: 604.00
+[1.48s] Live X: 603.00
+[1.57s] Live X: 600.00
+[1.69s] Live X: 603.00
+[1.78s] Live X: 604.00
+[1.86s] Live X: 602.00
+[1.95s] Live X: 602.00
+[2.04s] Live X: 601.00
+[2.16s] Live X: 599.00
+[2.24s] Live X: 601.00
+[2.33s] Live X: 597.00
+[2.42s] Live X: 597.00
+[2.51s] Live X: 594.00
+[2.63s] Live X: 639.00
+[2.71s] Live X: 585.00
+[2.79s] Live X: 584.00
+[2.88s] Live X: 621.00
+[2.97s] Live X: 576.00
+[3.09s] Live X: 613.00
+[3.18s] Live X: 617.00
+[3.26s] Live X: 558.00
+[3.35s] Live X: 557.00
+[3.45s] Live X: 550.00
+[3.57s] Live X: 548.00
+[3.66s] Live X: 540.00
+[3.74s] Live X: 539.00
+[3.83s] Live X: 534.00
+[3.93s] Live X: 529.00
+[4.04s] Live X: 528.00
+[4.13s] Live X: 529.00
+[4.23s] Live X: 528.00
+[4.31s] Live X: 530.00
+[4.40s] Live X: 529.00
+[4.53s] Live X: 528.00
+[4.62s] Live X: 527.00
+[4.71s] Live X: 601.00
+[4.79s] Live X: 527.00
+[4.88s] Live X: 527.00
+[5.00s] Live X: 527.00
+[5.09s] Live X: 526.00
+[5.18s] Live X: 526.00
+[5.26s] Live X: 526.00
+[5.35s] Live X: 590.00
+[5.46s] Live X: 591.00
+[5.54s] Live X: 528.00
+[5.63s] Live X: 529.00
+[5.71s] Live X: 580.00
+[5.80s] Live X: 560.00
+[5.92s] Live X: 645.00
+[6.00s] Live X: 526.00
+[6.09s] Live X: 529.00
+[6.17s] Live X: 593.00
+[6.26s] Live X: 532.00
+[6.38s] Live X: 531.00
+[6.46s] Live X: 532.00
+[6.55s] Live X: 533.00
+[6.64s] Live X: 607.00
+[6.73s] Live X: 538.00
+[6.85s] Live X: 541.00
+[6.94s] Live X: 545.00
+[7.03s] Live X: 554.00
+[7.11s] Live X: 552.00
+[7.20s] Live X: 555.00
+[7.32s] Live X: 561.00
+[7.41s] Live X: 570.00
+[7.50s] Live X: 572.00
+[7.59s] Live X: 576.00
+[7.68s] Live X: 579.00
+[7.81s] Live X: 584.00
+[7.89s] Live X: 590.00
+[7.98s] Live X: 595.00
+[8.06s] Live X: 601.00
+[8.15s] Live X: 600.00
+[8.28s] Live X: 600.00
+[8.37s] Live X: 600.00
+[8.45s] Live X: 603.00
+[8.54s] Live X: 601.00
+[8.63s] Live X: 599.00
+[8.75s] Live X: 602.00
+[8.83s] Live X: 599.00
+[8.92s] Live X: 602.00
+[9.01s] Live X: 596.00
+[9.10s] Live X: 593.00
+[9.22s] Live X: 591.00
+[9.30s] Live X: 584.00
+[9.39s] Live X: 581.00
+[9.48s] Live X: 581.00
+[9.57s] Live X: 575.00
+[9.70s] Live X: 573.00
+[9.79s] Live X: 565.00
+[9.87s] Live X: 563.00
+[9.96s] Live X: 560.00
+Timeout waiting for stable valley-to-peak transition — injecting anyway.
+Step 4a: Injecting gantry.
+Injecting...
+Step 4b: Injecting both.
+Injecting...
+Injecting...
+Step 4c: Retracting sample.
+Injecting...
+SENT: ROTATE 0.00 0.00
+Sequence complete.
+Homing device...
+Homing device...
+Homing device...
+SENT: ROTATE 0.00 0.00
+SENT: GOTO 175 260 140
+Target set to: 175, 260, 140
+Beginning alignment loop...
+Blind step to X: 173.00 (Target Y: 434)
+Target set to: 173, 260, 140
+SENT: GOTO 173 260 140
+Blind step to X: 171.00 (Target Y: 400)
+Target set to: 171, 260, 140
+SENT: GOTO 171 260 140
+Blind step to X: 173.00 (Target Y: 323)
+Target set to: 173, 260, 140
+SENT: GOTO 173 260 140
+Blind step to X: 175.00 (Target Y: 302)
+Target set to: 175, 260, 140
+SENT: GOTO 175 260 140
+Blind step to X: 177.00 (Target Y: 311)
+Target set to: 177, 260, 140
+SENT: GOTO 177 260 140
+Blind step to X: 179.00 (Target Y: 315)
+Target set to: 179, 260, 140
+SENT: GOTO 179 260 140
+Blind step to X: 181.00 (Target Y: 321)
+Target set to: 181, 260, 140
+SENT: GOTO 181 260 140
+Blind step to X: 183.00 (Target Y: 325)
+Target set to: 183, 260, 140
+SENT: GOTO 183 260 140
+Blind step to X: 185.00 (Target Y: 330)
+Target set to: 185, 260, 140
+SENT: GOTO 185 260 140
+Blind step to X: 187.00 (Target Y: 335)
+Target set to: 187, 260, 140
+SENT: GOTO 187 260 140
+Target aligned — exiting alignment loop.
+Capturing breathing motion for stability window using Camera 2...
+[0.04s] Target X: 578.00
+[0.14s] Target X: 580.00
+[0.26s] Target X: 580.00
+[0.35s] Target X: 581.00
+[0.43s] Target X: 587.00
+[0.52s] Target X: 591.00
+[0.61s] Target X: 595.00
+[0.75s] Target X: 600.00
+[0.84s] Target X: 608.00
+[0.93s] Target X: 612.00
+[1.01s] Target X: 614.00
+[1.11s] Target X: 619.00
+[1.22s] Target X: 625.00
+[1.31s] Target X: 576.00
+[1.40s] Target X: 637.00
+[1.49s] Target X: 613.00
+[1.59s] Target X: 645.00
+[1.71s] Target X: 648.00
+[1.80s] Target X: 648.00
+[1.88s] Target X: 649.00
+[1.97s] Target X: 647.00
+[2.06s] Target X: 643.00
+[2.18s] Target X: 647.00
+[2.27s] Target X: 641.00
+[2.36s] Target X: 648.00
+[2.45s] Target X: 645.00
+[2.54s] Target X: 643.00
+[2.67s] Target X: 644.00
+[2.75s] Target X: 642.00
+[2.84s] Target X: 647.00
+[2.93s] Target X: 642.00
+[3.02s] Target X: 633.00
+[3.14s] Target X: 633.00
+[3.23s] Target X: 626.00
+[3.32s] Target X: 622.00
+[3.41s] Target X: 618.00
+[3.49s] Target X: 615.00
+[3.62s] Target X: 610.00
+[3.70s] Target X: 605.00
+[3.78s] Target X: 602.00
+[3.86s] Target X: 599.00
+[3.96s] Target X: 593.00
+[4.07s] Target X: 589.00
+[4.16s] Target X: 529.00
+[4.24s] Target X: 579.00
+[4.33s] Target X: 580.00
+[4.42s] Target X: 580.00
+[4.54s] Target X: 526.00
+[4.63s] Target X: 579.00
+[4.71s] Target X: 526.00
+[4.80s] Target X: 526.00
+[4.88s] Target X: 580.00
+[5.00s] Target X: 524.00
+[5.08s] Target X: 581.00
+[5.17s] Target X: 524.00
+[5.26s] Target X: 561.00
+[5.35s] Target X: 560.00
+[5.46s] Target X: 580.00
+[5.56s] Target X: 580.00
+[5.64s] Target X: 562.00
+[5.73s] Target X: 562.00
+[5.82s] Target X: 582.00
+[5.94s] Target X: 523.00
+[6.02s] Target X: 580.00
+[6.10s] Target X: 580.00
+[6.19s] Target X: 526.00
+[6.27s] Target X: 582.00
+[6.39s] Target X: 581.00
+[6.47s] Target X: 530.00
+[6.55s] Target X: 553.00
+[6.64s] Target X: 561.00
+[6.72s] Target X: 581.00
+[6.84s] Target X: 528.00
+[6.92s] Target X: 580.00
+[7.01s] Target X: 583.00
+[7.10s] Target X: 537.00
+[7.19s] Target X: 541.00
+[7.32s] Target X: 595.00
+[7.41s] Target X: 548.00
+[7.50s] Target X: 605.00
+[7.59s] Target X: 610.00
+[7.68s] Target X: 614.00
+[7.80s] Target X: 619.00
+[7.89s] Target X: 626.00
+[7.98s] Target X: 630.00
+[8.07s] Target X: 633.00
+[8.15s] Target X: 641.00
+[8.27s] Target X: 642.00
+[8.35s] Target X: 647.00
+[8.44s] Target X: 648.00
+[8.53s] Target X: 647.00
+[8.61s] Target X: 647.00
+[8.73s] Target X: 648.00
+[8.82s] Target X: 648.00
+[8.90s] Target X: 647.00
+[8.99s] Target X: 649.00
+[9.08s] Target X: 648.00
+[9.21s] Target X: 649.00
+[9.29s] Target X: 650.00
+[9.37s] Target X: 649.00
+[9.47s] Target X: 646.00
+[9.56s] Target X: 643.00
+[9.68s] Target X: 639.00
+[9.77s] Target X: 634.00
+[9.85s] Target X: 630.00
+[9.94s] Target X: 627.00
+[10.03s] Target X: 621.00
+[10.15s] Target X: 618.00
+[10.24s] Target X: 612.00
+[10.32s] Target X: 607.00
+[10.41s] Target X: 604.00
+[10.50s] Target X: 600.00
+[10.62s] Target X: 594.00
+[10.71s] Target X: 589.00
+[10.79s] Target X: 534.00
+[10.88s] Target X: 583.00
+[10.96s] Target X: 582.00
+[11.09s] Target X: 525.00
+[11.18s] Target X: 581.00
+[11.27s] Target X: 526.00
+[11.36s] Target X: 529.00
+[11.45s] Target X: 525.00
+[11.57s] Target X: 582.00
+[11.65s] Target X: 581.00
+[11.75s] Target X: 581.00
+[11.83s] Target X: 526.00
+[11.92s] Target X: 559.00
+[12.04s] Target X: 581.00
+[12.12s] Target X: 525.00
+[12.21s] Target X: 581.00
+[12.29s] Target X: 556.00
+[12.38s] Target X: 582.00
+[12.50s] Target X: 581.00
+[12.59s] Target X: 581.00
+[12.67s] Target X: 583.00
+[12.76s] Target X: 524.00
+[12.85s] Target X: 524.00
+[12.97s] Target X: 582.00
+[13.05s] Target X: 526.00
+[13.14s] Target X: 528.00
+[13.23s] Target X: 563.00
+[13.32s] Target X: 524.00
+[13.44s] Target X: 560.00
+[13.53s] Target X: 580.00
+[13.62s] Target X: 581.00
+[13.70s] Target X: 584.00
+[13.79s] Target X: 536.00
+[13.91s] Target X: 590.00
+[14.00s] Target X: 598.00
+[14.08s] Target X: 549.00
+[14.17s] Target X: 592.00
+[14.26s] Target X: 609.00
+[14.38s] Target X: 615.00
+[14.47s] Target X: 613.00
+[14.56s] Target X: 626.00
+[14.65s] Target X: 633.00
+[14.74s] Target X: 639.00
+[14.87s] Target X: 647.00
+[14.95s] Target X: 755.00
+Auto-tuned X threshold: 584.10 (valley=548.25, peak=608.00)
+Stable breathing window detected at 1746022687.95s
+Step 2: Sending Y/Z position phase 1.
+The desired Y and Z positions for gantry are: 90, 170
+Target set to: 187, 90, 170
+SENT: GOTO 187 90 170
+Step 3: Sending theta to end effector.
+SENT: ROTATE 120.00 0.00
+Waiting for live valley-to-peak breathing window...
+[0.05s] Live X: 60.00
+Valley detected, now watching for peak rise...
+[0.15s] Live X: 61.00
+[0.24s] Live X: 60.00
+[0.37s] Live X: 60.00
+[0.45s] Live X: 52.00
+[0.54s] Live X: 51.00
+[0.63s] Live X: 47.00
+[0.73s] Live X: 52.00
+[0.85s] Live X: 60.00
+[0.94s] Live X: 51.00
+[1.02s] Live X: 59.00
+[1.11s] Live X: 54.00
+[1.20s] Live X: 50.00
+[1.32s] Live X: 58.00
+[1.41s] Live X: 57.00
+[1.49s] Live X: 58.00
+[1.57s] Live X: 59.00
+[1.66s] Live X: 60.00
+[1.78s] Live X: 60.00
+[1.87s] Live X: 55.00
+[1.96s] Live X: 59.00
+[2.05s] Live X: 49.00
+[2.13s] Live X: 58.00
+[2.25s] Live X: 60.00
+[2.34s] Live X: 60.00
+[2.42s] Live X: 52.00
+[2.51s] Live X: 53.00
+[2.60s] Live X: 55.00
+[2.73s] Live X: 62.00
+[2.82s] Live X: 59.00
+[2.91s] Live X: 59.00
+[3.00s] Live X: 59.00
+[3.09s] Live X: 60.00
+[3.21s] Live X: 59.00
+[3.29s] Live X: 59.00
+[3.38s] Live X: 67.00
+[3.47s] Live X: 59.00
+[3.55s] Live X: 66.00
+[3.68s] Live X: 60.00
+[3.77s] Live X: 60.00
+[3.86s] Live X: 81.00
+[3.94s] Live X: 62.00
+[4.03s] Live X: 61.00
+[4.15s] Live X: 59.00
+[4.24s] Live X: 61.00
+[4.33s] Live X: 60.00
+[4.41s] Live X: 61.00
+[4.50s] Live X: 81.00
+[4.62s] Live X: 71.00
+[4.71s] Live X: 59.00
+[4.80s] Live X: 60.00
+[4.89s] Live X: 61.00
+[4.98s] Live X: 58.00
+[5.10s] Live X: 61.00
+[5.19s] Live X: 60.00
+[5.28s] Live X: 61.00
+[5.37s] Live X: 59.00
+[5.47s] Live X: 787.00
+[5.59s] Live X: 60.00
+[5.68s] Live X: 786.00
+[5.77s] Live X: 771.00
+[5.85s] Live X: 61.00
+[5.94s] Live X: 822.00
+[6.06s] Live X: 822.00
+[6.15s] Live X: 820.00
+[6.24s] Live X: 64.00
+[6.32s] Live X: 816.00
+[6.41s] Live X: 62.00
+[6.53s] Live X: 58.00
+[6.62s] Live X: 60.00
+[6.70s] Live X: 61.00
+[6.80s] Live X: 61.00
+[6.88s] Live X: 60.00
+[7.00s] Live X: 60.00
+[7.07s] Live X: 61.00
+[7.16s] Live X: 59.00
+[7.25s] Live X: 62.00
+[7.33s] Live X: 60.00
+[7.46s] Live X: 55.00
+[7.55s] Live X: 59.00
+[7.64s] Live X: 60.00
+[7.72s] Live X: 59.00
+[7.82s] Live X: 61.00
+[7.94s] Live X: 59.00
+[8.02s] Live X: 59.00
+[8.10s] Live X: 59.00
+[8.18s] Live X: 59.00
+[8.27s] Live X: 60.00
+[8.39s] Live X: 61.00
+[8.48s] Live X: 59.00
+[8.56s] Live X: 58.00
+[8.65s] Live X: 55.00
+[8.74s] Live X: 59.00
+[8.86s] Live X: 57.00
+[8.94s] Live X: 58.00
+[9.03s] Live X: 59.00
+[9.12s] Live X: 60.00
+[9.21s] Live X: 59.00
+[9.33s] Live X: 61.00
+[9.42s] Live X: 59.00
+[9.50s] Live X: 59.00
+[9.59s] Live X: 60.00
+[9.67s] Live X: 62.00
+[9.79s] Live X: 60.00
+[9.88s] Live X: 70.00
+[9.98s] Live X: 57.00
+Timeout waiting for stable valley-to-peak transition — injecting anyway.
+Step 4a: Injecting gantry.
+Injecting...
+Step 4b: Injecting both.
+Injecting...
+Injecting...
+Step 4c: Retracting sample.
+Injecting...
+SENT: ROTATE 0.00 0.00
+Sequence complete.
